@@ -1,0 +1,74 @@
+{
+  "compilerOptions": {
+    /* Visit https://aka.ms/tsconfig to read more about this file */
+    /* Language and Environment */
+    "target": "ES2022", /* Updated to ES2022 for latest features */
+    "lib": [
+      "DOM",
+      "ES2022"
+    ], /* Match target version */
+    // "jsx": "preserve",                                /* Specify what JSX code is generated. */
+    // "libReplacement": true,                           /* Enable lib replacement. */
+    // "experimentalDecorators": true,                   /* Enable experimental support for legacy experimental decorators. */
+    // "emitDecoratorMetadata": true,                    /* Emit design-type metadata for decorated declarations in source files. */
+    // "jsxFactory": "",                                 /* Specify the JSX factory function used when targeting React JSX emit, e.g. 'React.createElement' or 'h'. */
+    // "jsxFragmentFactory": "",                         /* Specify the JSX Fragment reference used for fragments when targeting React JSX emit e.g. 'React.Fragment' or 'Fragment'. */
+    // "jsxImportSource": "",                            /* Specify module specifier used to import the JSX factory functions when using 'jsx: react-jsx*'. */
+    // "reactNamespace": "",                             /* Specify the object invoked for 'createElement'. This only applies when targeting 'react' JSX emit. */
+    // "noLib": true,                                    /* Disable including any library files, including the default lib.d.ts. */
+    // "useDefineForClassFields": true,                  /* Emit ECMAScript-standard-compliant class fields. */
+    // "moduleDetection": "auto",                        /* Control what method is used to detect module-format JS files. */    /* Modules */
+    "module": "ESNext", /* Specify what module code is generated. */
+    "rootDir": "./src", /* Specify the root folder within your source files. */
+    "moduleResolution": "bundler", /* Modern module resolution */
+    "baseUrl": "./", /* Enable path resolution */
+    "paths": {
+      "@/*": [
+        "src/*"
+      ] /* Clean import paths */
+    },    /* Type Roots - Simplified */
+    /* Type Roots - Simplified */
+    "typeRoots": [
+      "./node_modules/@types"
+    ],
+    "types": [], /* Explicitly empty to prevent auto-inclusion */
+    /* JavaScript Support */
+    "allowJs": false, /* TypeScript only for strictness */
+    /* Emit */
+    "declaration": true, /* Generate .d.ts files */
+    "declarationMap": true, /* Help with debugging */
+    "sourceMap": true, /* Enable source maps */
+    "outDir": "./dist",
+    "removeComments": true, /* Smaller output */
+    "importHelpers": true, /* Use tslib for helpers */    /* Interop Constraints */
+    "isolatedModules": true, /* Required for Vite */
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "downlevelIteration": true, /* Allow iterating over Maps and Sets in ES5 */
+    /* Type Checking - Strict but practical */
+    "strict": true,
+    "noImplicitAny": true, /* Override to true for type safety */
+    "strictNullChecks": true, /* Override to true for null safety */
+    "strictPropertyInitialization": false, /* Keep false for Foundry compatibility */
+    "noUnusedLocals": true, /* Clean code */
+    "noUnusedParameters": true, /* Clean code */
+    "noImplicitReturns": true, /* Explicit returns */
+    "noFallthroughCasesInSwitch": true, /* Prevent switch fallthrough */
+    "noUncheckedIndexedAccess": true, /* Safe array access */
+    "exactOptionalPropertyTypes": true, /* Precise optional properties */
+    /* Performance */
+    "skipLibCheck": true,
+    "incremental": true, /* Faster builds */
+    "tsBuildInfoFile": "./.tsbuildinfo" /* Cache file */
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "assets/images/documentation/**/*"
+  ]
+}

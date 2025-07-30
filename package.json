@@ -1,0 +1,43 @@
+{
+  "name": "shadows-and-secrets",
+  "version": "1.0.0-beta.1",
+  "description": "A Foundry VTT add-on that deepens immersion by presenting live, context-sensitive environmental details through each character's perspective.",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && npm run postbuild",
+    "postbuild": "copy module.json dist\\module.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint . --ext .ts,.js,.svelte",
+    "lint:fix": "eslint . --ext .ts,.js,.svelte --fix",
+    "lint:watch": "eslint . --ext .ts,.js,.svelte --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "devDependencies": {
+    "@league-of-foundry-developers/foundry-vtt-types": "^13.345.1",
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "@tsconfig/svelte": "^5.0.4",
+    "@types/node": "^22.15.24",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@vitest/ui": "^3.1.4",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-svelte": "^2.35.0",
+    "jsdom": "^26.1.0",
+    "pixi.js": "^7.4.3",
+    "sass-embedded": "^1.89.0",
+    "svelte": "^5.30.2",
+    "svelte-eslint-parser": "^0.33.0",
+    "svelte-preprocess": "^6.0.3",
+    "tslib": "^2.8.1",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^3.1.4"
+  }
+}

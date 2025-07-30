@@ -1,0 +1,61 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@300;400;700&display=swap");
+
+/* Health Display Styles */
+.health-display {
+    width: 150px;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    left: -160px; /* Position to the left of hotbar with 10px gap */
+    bottom: 0; /* Align to bottom of hotbar */
+    z-index: 70; /* Same z-index as hotbar */
+    pointer-events: auto;
+}
+
+.health-display-frame {
+    width: 100%;
+    height: 100%;
+}
+
+.health-display-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+/* Hotbar layout adjustment */
+#hotbar {
+    position: relative; /* Create positioning context for absolute child */
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Responsive behaviour for smaller screens */
+@media (max-width: 768px) {
+    .health-display {
+        width: 100px;
+        height: 100px;
+        left: -110px; /* Adjust position for smaller size */
+    }
+}
+
+/* Very small screens */
+@media (max-width: 480px) {
+    .health-display {
+        width: 75px;
+        height: 75px;
+        left: -85px;
+    }
+}
+
+/* High DPI screen optimisation */
+@media (min-resolution: 2dppx) {
+    .health-display-image {
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+    }
+}

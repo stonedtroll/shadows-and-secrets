@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.svelte-kit/
+build/
+
+# Test coverage
+coverage/
+
+# Cache
+.eslintcache
+.tsbuildinfo
+
+# External libraries
+lib/
+
+# Config files
+*.config.js
+*.config.ts
+vite.config.ts
+vitest.config.ts
+
+# Generated files
+**/*.d.ts
+
+# Temporary files
+*.tmp
+*.temp

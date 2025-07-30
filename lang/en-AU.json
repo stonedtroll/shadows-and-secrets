@@ -1,0 +1,23 @@
+{
+  "shadows-and-secrets": {
+    "settings": {
+      "logLevel": {
+        "name": "Log Level",
+        "hint": "Set the logging level for the module, mate",
+        "choices": {
+          "debug": "Debug — Show every bloody log message, the whole lot",
+          "info": "Info — Show the important stuff and above (chuck out debug)",
+          "warn": "Warning — Only the dodgy bits and errors",
+          "error": "Error — Just when things go pear-shaped",
+          "fatal": "Fatal — Only when it's properly cactus",
+          "none": "None — She'll be right, no logging"
+        }
+      },
+    "notifications": {
+      "moduleInitialised": "Shadows & Secrets is good to go, legend!",
+      "settingChanged": "Setting '{setting}' sorted to: {value}",
+      "settingFailed": "Strewth! Couldn't update setting '{setting}'",
+      "logLevelChanged": "Log level's now: {level}"
+    }
+  }
+}
