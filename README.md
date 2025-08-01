@@ -32,7 +32,8 @@ A Foundry VTT add-on that deepens immersion by presenting live, context-sensitiv
 </p>
 
 ## Usage
-- **Hold M**: Display the Health Arc for your token.
+- **Hold M**: Display the Health Arc for all visible tokens.
+- **Hold K**: Display the TRN for non-friendly tokens.
 
 <p align=right>
     <img  alt="GitHub Downloads (specific asset, all releases)" src="https://img.shields.io/github/downloads/stonedtroll/shadows-and-secrets/module.zip?style=for-the-badge&labelColor=2A2D34&color=8C2E2E">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img alt="GitHub Downloads (specific asset, latest release)" src="https://img.shields.io/github/downloads/stonedtroll/shadows-and-secrets/latest/module.zip?style=for-the-badge&labelColor=2A2D34&color=D97D26">
