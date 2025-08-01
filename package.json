@@ -1,6 +1,6 @@
 {
   "name": "shadows-and-secrets",
-  "version": "1.0.0-beta.2",
+  "version": "1.0.0",
   "description": "A Foundry VTT add-on that deepens immersion by presenting live, context-sensitive environmental details through each character's perspective.",
   "main": "dist/index.js",
   "type": "module",
