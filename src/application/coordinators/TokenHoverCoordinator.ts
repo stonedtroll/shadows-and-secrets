@@ -1,1 +1,0 @@
-//TODO Implement hover functionality for tokens

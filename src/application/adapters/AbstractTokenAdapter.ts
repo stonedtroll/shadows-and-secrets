@@ -3,6 +3,7 @@ import type { DispositionValue } from "../../domain/constants/TokenDisposition.j
 import { Vector2 } from "../../domain/value-objects/Vector2.js";
 import { Rotation } from "../../domain/value-objects/Rotation.js";
 import { MovementTypes } from "../../domain/value-objects/Speed.js";
+import { Actor } from "../../domain/entities/Actor.js";
 
 export abstract class AbstractTokenAdapter {
     constructor(protected token: Token) { }
@@ -22,6 +23,8 @@ export abstract class AbstractTokenAdapter {
     abstract get isControlledByCurrentUser(): boolean;
     abstract get isOwnedByCurrentUser(): boolean;
     abstract get actorId(): string | null;
-    abstract get verticalHeight(): number;
+    abstract get actor(): Actor;
     abstract get isBlockingObstacle(): boolean;
+    abstract get trackingReferenceNumber(): string;
+    abstract get portrait(): string | null;
 }

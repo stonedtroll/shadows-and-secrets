@@ -2,52 +2,79 @@ import { DnD5eActorAdapter } from "../adapters/DnD5eActorAdapter.js";
 import { AbstractActorAdapter } from "../../application/adapters/AbstractActorAdapter.js";
 import { CONSTANTS } from "../../config.js";
 
-// Type for concrete adapter classes that extend AbstractActorAdapter
 type ActorAdapterConstructor = new (actor: Actor) => AbstractActorAdapter;
 
-/**
- * Factory for creating and managing actor adapters.
- */
 export class ActorAdapterFactory {
-  private static readonly adapterCache = new Map<string, AbstractActorAdapter>();
   private static readonly supportedSystems = new Map<string, ActorAdapterConstructor>([
-    ['dnd5e', DnD5eActorAdapter],
-    // Add other system adapters here as they're implemented
-    // ['pf2e', PF2eActorAdapter],
-    // ['swade', SwadeActorAdapter],
+    ['dnd5e', DnD5eActorAdapter]
   ]);
 
   /**
-   * Create or retrieve an adapter for the given actor or actor ID.
-   * Uses caching to avoid recreating adapters for the same actor.
+   * Create an adapter for the given actor or actor ID.
    */
   static create(actorOrId: Actor): AbstractActorAdapter;
   static create(actorOrId: string): AbstractActorAdapter | null;
   static create(actorOrId: Actor | string): AbstractActorAdapter | null {
-    // Handle actor ID string
     if (typeof actorOrId === 'string') {
-      const actor = game.actors?.get(actorOrId);
-      if (!actor) {
-        console.warn(`[${CONSTANTS.MODULE_NAME}] Actor with ID ${actorOrId} not found`);
-        return null;
-      }
-      return this.create(actor);
+      const token = canvas.tokens?.placeables.find(t => t.actor?.id === actorOrId);
+ 
+      return this.create(token?.actor);
     }
 
-    // Handle Actor object
     const actor = actorOrId;
-    
-    // Check cache first
-    const cached = this.adapterCache.get(actor.id);
-    if (cached) {
-      return cached;
+
+    return this.createAdapter(actor);
+  }
+
+  /**
+   * Create an adapter from a token.
+   */
+  static createFromToken(tokenOrId: Token | string): AbstractActorAdapter | null {
+    const token = typeof tokenOrId === 'string' 
+      ? canvas.tokens?.get(tokenOrId) 
+      : tokenOrId;
+      
+    if (!token?.actor) {
+      console.warn(`[${CONSTANTS.MODULE_NAME}] Token has no actor: ${typeof tokenOrId === 'string' ? tokenOrId : tokenOrId.id}`);
+      return null;
     }
+    
+    return this.create(token.actor);
+  }
 
-    // Create new adapter based on game system
-    const adapter = this.createAdapter(actor);
-    this.adapterCache.set(actor.id, adapter);
+  /**
+   * Create an adapter from a token document.
+   */
+  static createFromTokenDocument(tokenDocument: TokenDocument): AbstractActorAdapter | null {
+    const actor = tokenDocument.actor;
+    if (!actor) {
+      console.warn(`[${CONSTANTS.MODULE_NAME}] Token document has no actor: ${tokenDocument.id}`);
+      return null;
+    }
+    
+    return this.create(actor);
+  }
 
-    return adapter;
+  /**
+   * Find all tokens for a given actor ID on the current canvas.
+   */
+  static findTokensForActor(actorId: string): Token[] {
+    if (!canvas.tokens?.placeables) return [];
+    
+    return canvas.tokens.placeables
+      .filter((placeable): placeable is Token => {
+        return placeable instanceof Token && placeable.actor?.id === actorId;
+      });
+  }
+
+  /**
+   * Create adapters for all tokens of a given actor on the canvas.
+   */
+  static createFromAllTokensOfActor(actorId: string): AbstractActorAdapter[] {
+    const tokens = this.findTokensForActor(actorId);
+    return tokens
+      .map(token => token.actor ? this.create(token.actor) : null)
+      .filter((adapter): adapter is AbstractActorAdapter => adapter !== null);
   }
 
   /**
@@ -68,55 +95,6 @@ export class ActorAdapterFactory {
   }
 
   /**
-   * Remove an adapter from the cache.
-   * Should be called when an actor is deleted or no longer needed.
-   */
-  static remove(actorId: string): void {
-    const adapter = this.adapterCache.get(actorId);
-    if (adapter && 'destroy' in adapter && typeof adapter.destroy === 'function') {
-      adapter.destroy();
-    }
-    this.adapterCache.delete(actorId);
-  }
-
-  /**
-   * Clear all cached adapters.
-   * Useful for cleanup or when switching scenes.
-   */
-  static clearCache(): void {
-    // Destroy all adapters that have a destroy method
-    for (const adapter of this.adapterCache.values()) {
-      if ('destroy' in adapter && typeof adapter.destroy === 'function') {
-        adapter.destroy();
-      }
-    }
-    this.adapterCache.clear();
-  }
-
-  /**
-   * Get the number of cached adapters.
-   * Useful for monitoring memory usage.
-   */
-  static get cacheSize(): number {
-    return this.adapterCache.size;
-  }
-
-  /**
-   * Check if an adapter exists for the given actor ID.
-   */
-  static has(actorId: string): boolean {
-    return this.adapterCache.has(actorId);
-  }
-
-  /**
-   * Register a new adapter class for a game system.
-   * Allows runtime registration of custom adapters.
-   */
-  static registerAdapter(systemId: string, adapterClass: ActorAdapterConstructor): void {
-    this.supportedSystems.set(systemId, adapterClass);
-  }
-
-  /**
    * Check if a game system is supported.
    */
   static isSystemSupported(systemId: string): boolean {
@@ -128,14 +106,6 @@ export class ActorAdapterFactory {
    */
   static get supportedGameSystems(): string[] {
     return Array.from(this.supportedSystems.keys());
-  }
-
-  /**
-   * Invalidate cache for a specific actor.
-   * Forces recreation on next access.
-   */
-  static invalidate(actorId: string): void {
-    this.remove(actorId);
   }
 
   /**
@@ -156,33 +126,23 @@ export class ActorAdapterFactory {
 
     return adapters;
   }
-}
 
-// Register hooks for automatic cache management
-Hooks.once('ready', () => {
-  // Clear cache when scene changes
-  Hooks.on('canvasReady', () => {
-    console.debug(`[${CONSTANTS.MODULE_NAME}] Clearing adapter cache for new scene`);
-    ActorAdapterFactory.clearCache();
-  });
+  /**
+   * Batch create adapters from tokens.
+   */
+  static createBatchFromTokens(tokens: (Token | null | undefined)[]): AbstractActorAdapter[] {
+    const adapters: AbstractActorAdapter[] = [];
 
-  // Remove adapter when actor is deleted
-  Hooks.on('deleteActor', (actor: Actor) => {
-    console.debug(`[${CONSTANTS.MODULE_NAME}] Removing adapter for deleted actor: ${actor.name}`);
-    ActorAdapterFactory.remove(actor.id);
-  });
+    for (const token of tokens) {
+      if (!token?.actor) continue;
 
-  // Invalidate cache when actor is updated
-  Hooks.on('updateActor', (actor: Actor, changes: any) => {
-    // Only invalidate if movement data changed
-    if (changes.system?.attributes?.movement) {
-      console.debug(`[${CONSTANTS.MODULE_NAME}] Invalidating adapter cache for actor: ${actor.name}`);
-      ActorAdapterFactory.invalidate(actor.id);
+      try {
+        adapters.push(this.create(token.actor));
+      } catch (error) {
+        console.error(`[${CONSTANTS.MODULE_NAME}] Failed to create adapter for token ${token.name}:`, error);
+      }
     }
-  });
-});
 
-// Clean up on game close
-Hooks.once('closeGame', () => {
-  ActorAdapterFactory.clearCache();
-});
+    return adapters;
+  }
+}

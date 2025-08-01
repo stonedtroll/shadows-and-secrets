@@ -5,7 +5,6 @@
 import type { InitialisableService } from '../../domain/interfaces/InitialisableService.js';
 
 import { EventBus } from '../events/EventBus.js';
-import { FoundryLineOfSightChecker } from '../adapters/FoundryLineOfSightChecker.js';
 import { KeyboardHandler } from '../input/KeyboardHandler.js';
 import { OverlayRegistry } from '../../application/registries/OverlayRegistry.js';
 import { OverlayRenderingService } from '../../presentation/services/OverlayRenderingService.js';
@@ -16,11 +15,9 @@ import { MODULE_ID } from '../../config.js';
 import { SystemEventAdapter } from '../adapters/SystemEventAdapter.js';
 import { TokenMeshAdapter } from '../adapters/TokenMeshAdapter.js';
 import { OverlayContextBuilderRegistry } from '../../application/registries/OverlayContextBuilderRegistry.js';
-import { TokenSheetAdapter } from '../adapters/TokenSheetAdapter.js';
 import { HealthDisplayManager } from '../../presentation/ui/HealthDisplayManager.js';
 import { TokenRepository } from '../repositories/TokenRepository.js';
-import { ActorRepository } from '../repositories/ActorRepository.js';
-import { ActorHealthMonitor } from '../../domain/services/ActorHealthMonitor.js';
+import { HealthMonitor } from '../../domain/services/HealthMonitor.js';
 
 export class DIContainer {
   private readonly services = new Map<string, any>();
@@ -48,14 +45,9 @@ export class DIContainer {
       const keyboardHandler = new KeyboardHandler(eventBus);
       const systemEventAdapter = new SystemEventAdapter(eventBus);
       const tokenMeshAdapter = new TokenMeshAdapter();
-      const tokenSheetAdapter = new TokenSheetAdapter();
 
       // Repositories
       const tokenRepository = new TokenRepository();
-      const actorRepository = new ActorRepository();
-
-      // Domain services
-      const lineOfSightChecker = new FoundryLineOfSightChecker();
 
       // Application services
       const overlayRegistry = new OverlayRegistry();
@@ -78,9 +70,9 @@ export class DIContainer {
 
       const healthDisplayManager = new HealthDisplayManager();
 
-      const actorHealthMonitor = new ActorHealthMonitor(
+      const actorHealthMonitor = new HealthMonitor(
         eventBus,
-        actorRepository,
+        // actorRepository,
         tokenRepository,
         healthDisplayManager
       );
@@ -88,15 +80,12 @@ export class DIContainer {
       // Store all services
       this.services.set('eventBus', eventBus);
       this.services.set('keyboardHandler', keyboardHandler);
-      this.services.set('lineOfSightChecker', lineOfSightChecker);
       this.services.set('overlayRegistry', overlayRegistry);
       this.services.set('overlayContextBuilderRegistry', overlayContextBuilderRegistry);
       this.services.set('overlayRenderer', overlayRenderer);
       this.services.set('keyboardCoordinator', keyboardCoordinator);
       this.services.set('systemEventAdapter', systemEventAdapter);
-      this.services.set('tokenSheetAdapter', tokenSheetAdapter);
       this.services.set('tokenRepository', tokenRepository);
-      this.services.set('actorRepository', actorRepository);
       this.services.set('healthDisplayManager', healthDisplayManager);
       this.services.set('actorHealthMonitor', actorHealthMonitor);
 

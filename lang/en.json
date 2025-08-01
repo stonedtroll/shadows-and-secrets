@@ -19,6 +19,16 @@
         "settingFailed": "Failed to update setting '{setting}'",
         "logLevelChanged": "Log level changed to: {level}"
       }
+    },
+    "keybindings": {
+      "toggleHealthOverlay": {
+        "name": "Toggle Health Arc",
+        "hint": "Show or hide health arcs for tokens (Hold M)"
+      },
+      "toggleTokenInfo": {
+        "name": "Toggle Tracking Reference Number",
+        "hint": "Show or hide tracking reference number overlay (Hold K)"
+      }
     }
   }
 }

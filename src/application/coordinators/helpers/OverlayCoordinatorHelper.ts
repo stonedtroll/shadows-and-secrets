@@ -11,12 +11,12 @@ import type { FoundryLogger } from '../../../../lib/log4foundry/log4foundry.js';
 import type { OverlayContextBuilderRegistry } from '../../registries/OverlayContextBuilderRegistry.js';
 import type { OverlayContextBuilder } from '../../../domain/interfaces/OverlayContextBuilder.js';
 
-import { Actor } from '../../../domain/entities/Actor.js';
 import { Token } from '../../../domain/entities/Token.js';
 import { LoggerFactory } from '../../../../lib/log4foundry/log4foundry.js';
 import { MODULE_ID } from '../../../config.js';
-import { ActorAdapterFactory } from '../../../infrastructure/factories/ActorAdapterFactory.js';
 import { HealthObfuscator } from '../../../domain/services/HealthObfuscator.js';
+import { DISPOSITION } from '../../../domain/constants/TokenDisposition.js';
+import { TokenRepository } from '../../../infrastructure/repositories/TokenRepository.js'; 
 
 export class OverlayCoordinatorHelper {
     private readonly logger: FoundryLogger;
@@ -41,16 +41,14 @@ export class OverlayCoordinatorHelper {
      */
     async processOverlaysByScope(
         overlays: OverlayDefinition[],
-        allTokens: Token[],
-        isGM: boolean,
-        userColour: string,
         contextBuilderRegistry: OverlayContextBuilderRegistry,
         triggerType?: keyof OverlayTriggers,
-        actors?: Actor[],
         previewToken?: Token
     ): Promise<Array<{ targetTokens: Token[], overlays: OverlayDefinition[] }>> {
         const overlayGroups = this.groupOverlaysByTargetScope(overlays, triggerType);
         const processedGroups: Array<{ targetTokens: Token[], overlays: OverlayDefinition[] }> = [];
+        const tokenRepository = new TokenRepository();
+        const allTokens = tokenRepository.getAll();
 
         for (const [targetScope, scopeOverlays] of overlayGroups.entries()) {
             const targetTokens = this.getTargetTokens(
@@ -78,17 +76,13 @@ export class OverlayCoordinatorHelper {
             await this.requestOverlayRendering(
                 targetTokens,
                 preparedOverlays,
-                isGM,
-                (overlayId, targetToken, isGM) =>
+                (overlayId, targetToken) =>
                     this.buildContextForOverlay(
                         overlayId,
                         targetToken,
-                        isGM,
-                        userColour,
                         preparedOverlays,
                         contextBuilderRegistry,
-                        sourceToken,
-                        actors
+                        sourceToken
                     )
             );
 
@@ -238,12 +232,9 @@ export class OverlayCoordinatorHelper {
     buildContextForOverlay(
         overlayId: string,
         targetToken: Token,
-        isGM: boolean,
-        userColour: string,
         overlaysWithBuilders: OverlayDefinition[],
         contextBuilderRegistry: OverlayContextBuilderRegistry,
-        sourceToken?: Token,
-        actors?: Actor[]
+        sourceToken?: Token
     ): OverlayRenderContext {
         const overlay = overlaysWithBuilders.find(o => o.id === overlayId);
 
@@ -260,11 +251,8 @@ export class OverlayCoordinatorHelper {
 
         const contextOptions = this.buildContextOptions(
             overlayId,
-            isGM,
-            userColour,
             targetToken,
-            sourceToken,
-            actors
+            sourceToken
         );
 
         return contextBuilder.buildContext(targetToken, overlay, contextOptions);
@@ -278,15 +266,13 @@ export class OverlayCoordinatorHelper {
     async requestOverlayRendering(
         targetTokens: Token[],
         matchingOverlays: OverlayDefinition[],
-        isGM: boolean,
-        contextBuilder: (overlayId: string, token: Token, isGM: boolean) => OverlayRenderContext
+        contextBuilder: (overlayId: string, token: Token) => OverlayRenderContext
     ): Promise<void> {
         // Process each target token
         for (const targetToken of targetTokens) {
             await this.renderOverlaysOnToken(
                 targetToken,
                 matchingOverlays,
-                isGM,
                 contextBuilder
             );
         }
@@ -409,17 +395,15 @@ export class OverlayCoordinatorHelper {
     private async renderOverlaysOnToken(
         targetToken: Token,
         overlays: OverlayDefinition[],
-        isGM: boolean,
-        contextBuilder: (overlayId: string, token: Token, isGM: boolean) => OverlayRenderContext
+        contextBuilder: (overlayId: string, token: Token) => OverlayRenderContext
     ): Promise<void> {
         for (const overlay of overlays) {
-            const context = contextBuilder(overlay.id, targetToken, isGM);
+            const context = contextBuilder(overlay.id, targetToken);
 
             this.logger.debug(`Rendering overlay ${overlay.id} on token ${targetToken.name}`, {
                 overlayId: overlay.id,
                 tokenId: targetToken.id,
-                tokenName: targetToken.name,
-                isGM
+                tokenName: targetToken.name
             });
 
             this.overlayRenderer.renderTokenOverlay(context);
@@ -461,18 +445,14 @@ export class OverlayCoordinatorHelper {
      */
     private buildContextOptions(
         overlayId: string,
-        isGM: boolean,
-        userColour: string,
         targetToken: Token,
         sourceToken?: Token,
-        actors?: Actor[]
     ): any {  // Using 'any' since different overlays have different option types
 
         switch (overlayId) {
             case 'health-arc':
                 const obfuscatedHealth = this.healthObfuscator.obfuscateHealth(
-                    targetToken,
-                    isGM
+                    targetToken
                 );
 
                 const { health, maxHealth, tempHealth, accuracy } = obfuscatedHealth;
@@ -514,8 +494,6 @@ export class OverlayCoordinatorHelper {
                 });
 
                 return {
-                    isGM,
-                    userColour,
                     healthArcStartAngle,
                     healthArcEndAngle,
                     healthArcColour,
@@ -530,11 +508,46 @@ export class OverlayCoordinatorHelper {
                     anticlockwise: true
                 };
 
-            default:
+            case 'token-info':
+                const disposition = targetToken.disposition;
+
+                if (disposition === DISPOSITION.FRIENDLY) {
+                    return {
+                        trackingReferenceNumber: '',
+                    };
+                }
+                
+                const trackingReferenceNumber = targetToken.trackingReferenceNumber;
+                
+                let prefix = '';
+                switch (disposition) {
+                    case DISPOSITION.SECRET:
+                        prefix = 'Contact';
+                        break;
+                    case DISPOSITION.NEUTRAL:
+                        prefix = 'Bogey';
+                        break;
+                    case DISPOSITION.HOSTILE:
+                        prefix = 'Bandit';
+                        break;
+                    default:
+                        prefix = '';
+                        break;
+                }
+                
+                const displayText = `${prefix} ${trackingReferenceNumber}`;
+
+                this.logger.debug('Token info context built', {
+                    tokenName: targetToken.name,
+                    trackingReferenceNumber: displayText
+                });
+                
                 return {
-                    isGM,
-                    userColour
+                    trackingReferenceNumber: displayText,
                 };
+
+            default:
+                return {};
         }
     }
 

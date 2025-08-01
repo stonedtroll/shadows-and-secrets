@@ -4,6 +4,7 @@ import { ActorAdapterFactory } from '../../infrastructure/factories/ActorAdapter
 import { TokenRepository } from '../../infrastructure/repositories/TokenRepository.js';
 import { LoggerFactory, type FoundryLogger } from '../../../lib/log4foundry/log4foundry.js';
 import { MODULE_ID } from '../../config.js';
+import { UserRepository } from '../..//infrastructure/repositories/UserRepository.js';
 
 export interface ObfuscatedHealth {
     health: number;
@@ -30,9 +31,13 @@ export class HealthObfuscator {
      * Obfuscates health values based on the observer's passive perception.
      */
     obfuscateHealth(
-        targetToken: Token,
-        isGM: boolean
+        targetToken: Token
     ): ObfuscatedHealth {
+
+        const userRepository = new UserRepository();
+        const currentUser = userRepository.getCurrentUser();
+        const isGM = currentUser?.isGM;
+
         if (isGM || targetToken.isOwnedByCurrentUser) {
             return this.getExactHealth(targetToken);
         }
@@ -63,7 +68,7 @@ export class HealthObfuscator {
             exactHealth.maxHealth,
             exactHealth.tempHealth,
             variance,
-            targetToken.id 
+            targetToken.id
         );
 
         return {
@@ -80,15 +85,25 @@ export class HealthObfuscator {
         let maxHealth = 1;
         let tempHealth = 0;
 
-        if (token.actorId) {
-            const actorAdapter = ActorAdapterFactory.create(token.actorId);
-            if (actorAdapter) {
-                const actor = new Actor(actorAdapter);
-                health = actor.health;
-                maxHealth = actor.maxHealth;
-                tempHealth = actor.tempHealth;
-            }
+
+        const actorAdapter = ActorAdapterFactory.createFromToken(token.id);
+        this.logger.debug(`Actor adapter created for token ${token.name} [${token.id}]`, {
+            actorAdapter,
+            token
+        });
+
+        if (actorAdapter) {
+            const actor = new Actor(actorAdapter);
+            health = actor.health;
+            maxHealth = actor.maxHealth;
+            tempHealth = actor.tempHealth;
+
+            this.logger.debug(`Exact health for token ${token.name} [${token.id}]`, {
+                actor,
+                token
+            });
         }
+
 
         return {
             health,
@@ -102,14 +117,14 @@ export class HealthObfuscator {
      * Gets the observer token (controlled or first owned) from repository.
      */
     private getObserverToken(): Token | undefined {
-        const controlledAdapters = this.tokenRepository.getControlledAsAdapters();
-        if (controlledAdapters.length > 0 && controlledAdapters[0]) {
-            return new Token(controlledAdapters[0]);
+        const controlledTokens = this.tokenRepository.getControlledByCurrentUser();
+        if (controlledTokens.length > 0 && controlledTokens[0]) {
+            return controlledTokens[0];
         }
 
-        const ownedAdapters = this.tokenRepository.getOwnedByCurrentUserAsAdapters();
-        if (ownedAdapters.length > 0 && ownedAdapters[0]) {
-            return new Token(ownedAdapters[0]);
+        const ownedTokens = this.tokenRepository.getOwnedByCurrentUser();
+        if (ownedTokens.length > 0 && ownedTokens[0]) {
+            return ownedTokens[0];
         }
 
         return undefined;
@@ -130,9 +145,9 @@ export class HealthObfuscator {
 
         const actor = new Actor(actorAdapter);
 
-        const passivePerception = (actor as any).passivePerception ?? 
-                                 (actor as any).system?.skills?.perception?.passive ??
-                                 HealthObfuscator.BASE_PERCEPTION;
+        const passivePerception = (actor as any).passivePerception ??
+            (actor as any).system?.skills?.perception?.passive ??
+            HealthObfuscator.BASE_PERCEPTION;
 
         return Math.max(0, passivePerception);
     }
@@ -142,8 +157,8 @@ export class HealthObfuscator {
      */
     private calculateVariance(passivePerception: number): number {
         const perceptionDiff = passivePerception - HealthObfuscator.BASE_PERCEPTION;
-        const variance = HealthObfuscator.BASE_VARIANCE - 
-                        (perceptionDiff * HealthObfuscator.ACCURACY_CHANGE_PER_POINT);
+        const variance = HealthObfuscator.BASE_VARIANCE -
+            (perceptionDiff * HealthObfuscator.ACCURACY_CHANGE_PER_POINT);
 
         return Math.max(
             HealthObfuscator.MIN_VARIANCE,
@@ -162,10 +177,10 @@ export class HealthObfuscator {
         tokenId?: string
     ): Pick<ObfuscatedHealth, 'health' | 'maxHealth' | 'tempHealth'> {
 
-        const timeWindow = Math.floor(Date.now() / 60000); 
+        const timeWindow = Math.floor(Date.now() / 60000);
         const tokenHash = tokenId ? this.hashString(tokenId) : 0;
         const seed = timeWindow + tokenHash;
-        
+
         const healthBase = 1 - variance + (this.seededRandom(seed) * variance * 2);
         const maxHealthBase = 1 - variance + (this.seededRandom(seed + 1) * variance * 2);
         const tempHealthBase = 1 - variance + (this.seededRandom(seed + 2) * variance * 2);
@@ -174,7 +189,7 @@ export class HealthObfuscator {
         const healthRandom = (this.seededRandom(seed + 3) * 2 - 1) * smallRandomness;
         const maxHealthRandom = (this.seededRandom(seed + 4) * 2 - 1) * smallRandomness;
         const tempHealthRandom = (this.seededRandom(seed + 5) * 2 - 1) * smallRandomness;
-        
+
         const healthMultiplier = healthBase + healthRandom;
         const maxHealthMultiplier = maxHealthBase + maxHealthRandom;
         const tempHealthMultiplier = tempHealthBase + tempHealthRandom;
@@ -226,7 +241,7 @@ export class HealthObfuscator {
         for (let i = 0; i < str.length; i++) {
             const char = str.charCodeAt(i);
             hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; 
+            hash = hash & hash;
         }
         return Math.abs(hash);
     }

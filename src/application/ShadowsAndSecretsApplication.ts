@@ -11,6 +11,7 @@ import type { OverlayDefinition } from '../domain/interfaces/OverlayDefinition.j
 import { LoggerFactory } from '../../lib/log4foundry/log4foundry.js';
 import { MODULE_ID } from '../config.js';
 import { HealthArcDefinition } from '../infrastructure/overlays/definitions/HealthArcDefinition.js';
+import { TokenInfoDefinition } from '../infrastructure/overlays/definitions/TokenInfoDefinition.js';
 
 export class ShadowsAndSecretsApplication {
   private readonly logger: FoundryLogger;
@@ -96,7 +97,8 @@ export class ShadowsAndSecretsApplication {
     this.logger.info('Registering default overlays');
 
     const overlayDefinitions: OverlayDefinition[] = [
-      HealthArcDefinition
+      HealthArcDefinition,
+      TokenInfoDefinition
     ];
 
     let successCount = 0;
@@ -121,16 +123,5 @@ export class ShadowsAndSecretsApplication {
       failed: errors.length,
       registered: registeredOverlays.map(o => o.id)
     });
-
-    // Throw if critical overlays failed to register
-    if (errors.length > 0) {
-      const criticalFailure = errors.find(e =>
-        e.id === 'facing-arc' || e.id === 'token-boundary'
-      );
-
-      if (criticalFailure) {
-        throw new Error(`Failed to register critical overlay: ${criticalFailure.id}`);
-      }
-    }
   }
 }

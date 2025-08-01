@@ -244,13 +244,6 @@ export interface KeyboardKeyDownEvent {
     meta?: boolean;
   };
   timestamp: number;
-  allTokenAdapters: AbstractTokenAdapter[];
-  ownedByCurrentUserActorAdapters: AbstractActorAdapter[];
-  user: {
-    id: string;
-    colour: string;
-    isGM: boolean;
-  }
 }
 
 export interface KeyboardKeyUpEvent {
@@ -263,11 +256,6 @@ export interface KeyboardKeyUpEvent {
     meta?: boolean;
   };
   timestamp?: number;
-  user: {
-    id: string;
-    colour: string;
-    isGM: boolean;
-  }
 }
 
 export interface MovementValidationRequest {

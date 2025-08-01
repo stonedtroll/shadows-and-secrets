@@ -10,16 +10,12 @@ import type {
 
 import { LoggerFactory } from '../../../lib/log4foundry/log4foundry.js';
 import { MODULE_ID } from '../../config.js';
-import { TokenRepository } from '../repositories/TokenRepository.js';
-import { ActorRepository } from '../repositories/ActorRepository.js';
 import { UserRepository } from '../repositories/UserRepository.js';
 
 export class KeyboardHandler {
 
   private readonly logger: FoundryLogger;
   private readonly eventBus: EventBus;
-  private readonly tokenRepository: TokenRepository;
-  private readonly actorRepository: ActorRepository;
   private readonly userRepository: UserRepository;
 
   private readonly activeKeys = new Set<string>();
@@ -33,8 +29,6 @@ export class KeyboardHandler {
   constructor(eventBus: EventBus) {
     this.eventBus = eventBus;
     this.logger = LoggerFactory.getInstance().getFoundryLogger(`${MODULE_ID}.KeyboardHandler`);
-    this.tokenRepository = new TokenRepository();
-    this.actorRepository = new ActorRepository(this.tokenRepository);
     this.userRepository = new UserRepository();
   }
 
@@ -62,18 +56,14 @@ export class KeyboardHandler {
       key,
       code,
       modifiers: { ...this.modifierState },
-      timestamp: Date.now(),
-      user: this.userRepository.getCurrentUserContext(),
-      allTokenAdapters: this.tokenRepository.getAllAsAdapters(),
-      ownedByCurrentUserActorAdapters: this.actorRepository.getFromOwnedTokensAsAdapters(),
+      timestamp: Date.now()
     };
 
     this.logger.debug(`Key pressed`, {
       key: keyDownEvent.key,
       code: keyDownEvent.code,
       modifiers: keyDownEvent.modifiers,
-      timestamp: keyDownEvent.timestamp,
-      user: keyDownEvent.user,
+      timestamp: keyDownEvent.timestamp
     });
 
     this.eventBus.emit('keyboard:keyDown', keyDownEvent);
@@ -91,16 +81,14 @@ export class KeyboardHandler {
       key,
       code,
       modifiers: { ...this.modifierState },
-      timestamp: Date.now(),
-      user: this.userRepository.getCurrentUserContext(),
+      timestamp: Date.now()
     };
 
     this.logger.debug(`Key released`, {
       key: keyUpEvent.key,
       code: keyUpEvent.code,
       modifiers: keyUpEvent.modifiers,
-      timestamp: keyUpEvent.timestamp,
-      user: keyUpEvent.user,
+      timestamp: keyUpEvent.timestamp
     });
 
     this.eventBus.emit('keyboard:keyUp', keyUpEvent);
@@ -121,9 +109,10 @@ export class KeyboardHandler {
     }
 
     try {
-      game.keybindings.register(MODULE_ID, 'toggleOverlay', {
-        name: `${MODULE_ID}.keybindings.toggleOverlay.name`,
-        hint: `${MODULE_ID}.keybindings.toggleOverlay.hint`,
+      // Register M key for health overlays
+      game.keybindings.register(MODULE_ID, 'toggleHealthOverlay', {
+        name: `${MODULE_ID}.keybindings.toggleHealthOverlay.name`,
+        hint: `${MODULE_ID}.keybindings.toggleHealthOverlay.hint`,
         editable: [{
           key: 'KeyM',
           modifiers: []
@@ -143,7 +132,33 @@ export class KeyboardHandler {
         precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL
       });
 
-      this.logger.info('Keybindings registered successfully');
+      // Register K key for token info overlays
+      game.keybindings.register(MODULE_ID, 'toggleTokenInfo', {
+        name: `${MODULE_ID}.keybindings.toggleTokenInfo.name`,
+        hint: `${MODULE_ID}.keybindings.toggleTokenInfo.hint`,
+        editable: [{
+          key: 'KeyK',
+          modifiers: []
+        }],
+        onDown: () => {
+          // Check if handler is fully initialised before emitting
+          if (this.activeKeys && this.eventBus) {
+            this.emitKeyboardKeyDownEvent('k', 'KeyK');
+          }
+        },
+        onUp: () => {
+          // Check if handler is fully initialised before emitting
+          if (this.activeKeys && this.eventBus) {
+            this.emitKeyboardKeyUpEvent('k', 'KeyK');
+          }
+        },
+        precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL
+      });
+
+      this.logger.info('Keybindings registered successfully', {
+        registeredKeys: ['KeyM', 'KeyK'],
+        bindings: ['toggleHealthOverlay', 'toggleTokenInfo']
+      });
     } catch (error) {
       this.logger.error('Failed to register keybindings', error);
     }

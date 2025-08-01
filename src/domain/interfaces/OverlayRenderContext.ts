@@ -96,8 +96,7 @@ interface ActorInfoContext {
 
 interface TokenInfoContext {
 
-  rangeIcon: string;
-  range: string | null;
+  trackingReferenceNumber: string;
 }
 
 interface SpeedContext {
@@ -137,7 +136,7 @@ interface UserInfo {
 
   id?: string;
   colour?: string;
-  isGM: boolean;
+  isGM?: boolean;
 }
 
 /**
@@ -182,7 +181,7 @@ export interface OverlayRenderContext {
   movement?: MovementContext;
   healthInfo?: HealthInfoContext;
   visibility?: VisibilityContext;
-  user: UserInfo;
+  user?: UserInfo;
   isPreview?: boolean;
   animate?: boolean;
   priority?: RenderPriority;

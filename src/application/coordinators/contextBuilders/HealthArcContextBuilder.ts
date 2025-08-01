@@ -4,8 +4,6 @@ import type { OverlayRenderContext } from '../../../domain/interfaces/OverlayRen
 import type { OverlayDefinition } from '../../../domain/interfaces/OverlayDefinition.js';
 
 interface HealthArcContextOptions {
-    isGM?: boolean;
-    userColour?: string;
     healthArcStartAngle: number;
     healthArcEndAngle: number;
     healthArcColour: string;
@@ -69,9 +67,6 @@ export class HealthArcContextBuilder implements OverlayContextBuilder<HealthArcC
                 arcWidth: options.arcWidth,
                 anticlockwise: options.anticlockwise
             },
-            user: {
-                isGM: options.isGM ?? false
-            }
         };
     }
 }

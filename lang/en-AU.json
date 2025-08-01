@@ -13,11 +13,22 @@
           "none": "None — She'll be right, no logging"
         }
       },
-    "notifications": {
-      "moduleInitialised": "Shadows & Secrets is good to go, legend!",
-      "settingChanged": "Setting '{setting}' sorted to: {value}",
-      "settingFailed": "Strewth! Couldn't update setting '{setting}'",
-      "logLevelChanged": "Log level's now: {level}"
+      "notifications": {
+        "moduleInitialised": "Shadows & Secrets is good to go, legend!",
+        "settingChanged": "Setting '{setting}' sorted to: {value}",
+        "settingFailed": "Strewth! Couldn't update setting '{setting}'",
+        "logLevelChanged": "Log level's now: {level}"
+      }
+    },
+    "keybindings": {
+      "toggleHealthOverlay": {
+        "name": "Toggle Health Arc",
+        "hint": "Chuck the health arcs on or off for your tokens (Hold M, mate)"
+      },
+      "toggleTokenInfo": {
+        "name": "Toggle Tracking Reference Number",
+        "hint": "Have a squiz at the tracking reference numbers or give 'em the flick (Hold K)"
+      }
     }
   }
 }

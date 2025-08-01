@@ -10,6 +10,7 @@ import type { TokenMeshAdapter } from '../../infrastructure/adapters/TokenMeshAd
 import { OverlayRegistry } from '../../application/registries/OverlayRegistry.js';
 import { OverlayContainer } from '../overlays/OverlayContainer.js';
 import { HealthArcRenderer } from '../renderers/HealthArcRenderer.js';
+import { TokenInfoRenderer } from '../renderers/TokenIfoRenderer.js';
 import { MODULE_ID } from '../../config.js';
 import { LoggerFactory, type FoundryLogger } from '../../../lib/log4foundry/log4foundry.js';
 
@@ -148,6 +149,7 @@ export class OverlayRenderingService implements InitialisableService {
    */
   private initialiseRenderers(): void {
     this.renderers.set('health-arc', new HealthArcRenderer());
+    this.renderers.set('token-info', new TokenInfoRenderer());
 
     this.logger.debug('Initialised overlay renderers', {
       renderers: Array.from(this.renderers.keys())

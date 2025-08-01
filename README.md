@@ -16,6 +16,11 @@ A Foundry VTT add-on that deepens immersion by presenting live, context-sensitiv
 ### Health
 - **Health Arc**: A visual gauge of an actor’s current and temporary health. For tokens not owned by the player, accuracy depends on the controlled token’s passive perception.
 
+### Tracking Reference Number
+- **Tally-Ho**: Assign all non-friendly tokens a unique three-digit TRN prefixed by Contact, Bogey, or Bandit based on their disposition (secret, neutral, or hostile). For example:
+
+“Tally-Ho! Bandits at 2 o’clock. Engaging with Fireball: Bandit 067, 089, 075, 066, and 033.”
+
 <p align=center>
     <img alt="Health Arc" src="assets/images/documentation/health-arc.png" />
 </p>

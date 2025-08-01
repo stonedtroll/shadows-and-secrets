@@ -14,7 +14,6 @@ import type { OverlayRegistry } from '../registries/OverlayRegistry.js';
 import type { OverlayContextBuilderRegistry } from '../registries/OverlayContextBuilderRegistry.js';
 import type { FoundryLogger } from '../../../lib/log4foundry/log4foundry.js';
 
-import { Actor } from '../../domain/entities/Actor.js';
 import { Token } from '../../domain/entities/Token.js';
 import { OverlayCoordinatorHelper } from './helpers/OverlayCoordinatorHelper.js';
 import { LoggerFactory } from '../../../lib/log4foundry/log4foundry.js';
@@ -23,12 +22,14 @@ import { MODULE_ID } from '../../config.js';
 export class KeyboardCoordinator {
 
   private static readonly KEY_M = 'm';
+  private static readonly KEY_K = 'k';
 
   private readonly logger: FoundryLogger;
   private readonly overlayHelper: OverlayCoordinatorHelper;
 
   private readonly activeKeys = new Set<string>();
   private readonly mKeyOverlaysCache = new Map<string, Set<string>>();
+  private readonly kKeyOverlaysCache = new Map<string, Set<string>>(); // Add K key cache
 
   constructor(
     private readonly overlayRenderer: OverlayRenderingService,
@@ -47,7 +48,7 @@ export class KeyboardCoordinator {
   async handleKeyDown(event: KeyboardKeyDownEvent): Promise<void> {
     const normalisedKey = event.key.toLowerCase();
 
-    if (normalisedKey !== KeyboardCoordinator.KEY_M) {
+    if (normalisedKey !== KeyboardCoordinator.KEY_M && normalisedKey !== KeyboardCoordinator.KEY_K) {
       return;
     }
 
@@ -59,15 +60,7 @@ export class KeyboardCoordinator {
     this.activeKeys.add(normalisedKey);
     this.logger.debug(`Key pressed`, { key: normalisedKey, activeKeys: Array.from(this.activeKeys) });
 
-    const allTokens = event.allTokenAdapters.map(adapter => new Token(adapter));
-    const ownedActors = event.ownedByCurrentUserActorAdapters.map(adapter => new Actor(adapter));
-
-    await this.updateOverlays(
-      allTokens,
-      ownedActors,
-      event.user.isGM,
-      event.user.colour
-    );
+    await this.updateOverlays();
   }
 
   async handleKeyUp(event: KeyboardKeyUpEvent): Promise<void> {
@@ -85,16 +78,23 @@ export class KeyboardCoordinator {
     if (normalisedKey === KeyboardCoordinator.KEY_M && this.mKeyOverlaysCache.size > 0) {
       await this.hideAllMKeyOverlays();
     }
+
+    // Hide K-key overlays if K key was released
+    if (normalisedKey === KeyboardCoordinator.KEY_K && this.kKeyOverlaysCache.size > 0) {
+      await this.hideAllKKeyOverlays();
+    }
   }
 
   /**
-   * Clears all active key states.
+   * Clears all active key states and overlay caches.
    */
   clearAllKeys(): void {
     const previousCount = this.activeKeys.size;
     this.activeKeys.clear();
+    this.mKeyOverlaysCache.clear();
+    this.kKeyOverlaysCache.clear();
 
-    this.logger.debug('Cleared all key states', { previousCount });
+    this.logger.debug('Cleared all key states and overlay caches', { previousCount });
   }
 
   /**
@@ -129,50 +129,76 @@ export class KeyboardCoordinator {
   /**
    * Updates overlay visibility based on current key states.
    */
-  private async updateOverlays(
-    allTokens: Token[],
-    ownedActors: Actor[],
-    isGM: boolean,
-    userColour: string,
-  ): Promise<void> {
+  private async updateOverlays(): Promise<void> {
     const isMKeyPressed = this.activeKeys.has(KeyboardCoordinator.KEY_M);
+    const isKKeyPressed = this.activeKeys.has(KeyboardCoordinator.KEY_K);
 
+    // Handle M key overlays
     if (!isMKeyPressed && this.mKeyOverlaysCache.size > 0) {
       await this.hideAllMKeyOverlays();
-      return;
+    }
+
+    // Handle K key overlays
+    if (!isKKeyPressed && this.kKeyOverlaysCache.size > 0) {
+      await this.hideAllKKeyOverlays();
     }
 
     if (this.activeKeys.size === 0) {
       return;
     }
 
-    const mKeyOverlays = this.overlayRegistry.filterByKeyTrigger(
-      KeyboardCoordinator.KEY_M
-    );
+    // Process M key overlays
+    if (isMKeyPressed) {
+      await this.processMKeyOverlays();
+    }
+
+    // Process K key overlays
+    if (isKKeyPressed) {
+      await this.processKKeyOverlays();
+    }
+  }
+
+  /**
+   * Processes M key overlays.
+   */
+  private async processMKeyOverlays(): Promise<void> {
+    const mKeyOverlays = this.overlayRegistry.filterByKeyTrigger(KeyboardCoordinator.KEY_M);
 
     if (mKeyOverlays.length === 0) {
       return;
     }
 
     // Clear cache when M key is first pressed
-    if (isMKeyPressed) {
-      this.mKeyOverlaysCache.clear();
-    }
+    this.mKeyOverlaysCache.clear();
 
     // Process overlays by scope and render them
-    const overlayGroups = await this.overlayHelper.processOverlaysByScope(
-      mKeyOverlays,
-      allTokens,
-      isGM,
-      userColour,
-      this.contextBuilderRegistry,
-      'keyPress',
-      ownedActors,
-    );
+    const overlayGroups = await this.overlayHelper.processOverlaysByScope(mKeyOverlays, this.contextBuilderRegistry, 'keyPress');
 
     // Track M-key overlays for cleanup
     for (const { targetTokens, overlays } of overlayGroups) {
       this.trackMKeyOverlays(targetTokens, overlays);
+    }
+  }
+
+  /**
+   * Processes K key overlays.
+   */
+  private async processKKeyOverlays(): Promise<void> {
+    const kKeyOverlays = this.overlayRegistry.filterByKeyTrigger(KeyboardCoordinator.KEY_K);
+
+    if (kKeyOverlays.length === 0) {
+      return;
+    }
+
+    // Clear cache when K key is first pressed
+    this.kKeyOverlaysCache.clear();
+
+    // Process overlays by scope and render them
+    const overlayGroups = await this.overlayHelper.processOverlaysByScope(kKeyOverlays, this.contextBuilderRegistry, 'keyPress');
+
+    // Track K-key overlays for cleanup
+    for (const { targetTokens, overlays } of overlayGroups) {
+      this.trackKKeyOverlays(targetTokens, overlays);
     }
   }
 
@@ -198,6 +224,36 @@ export class KeyboardCoordinator {
     this.logger.debug('M key overlays tracked', {
       mKeyOverlaysSize: this.mKeyOverlaysCache.size,
       mKeyOverlaysEntries: Array.from(this.mKeyOverlaysCache.entries()).map(
+        ([tokenId, overlayIds]) => ({
+          tokenId,
+          overlayIds: Array.from(overlayIds)
+        })
+      )
+    });
+  }
+
+  /**
+   * Tracks K-key overlays for efficient cleanup when key is released.
+   */
+  private trackKKeyOverlays(
+    targetTokens: Token[],
+    overlays: OverlayDefinition[]
+  ): void {
+    const overlayIds = new Set(overlays.map(overlay => overlay.id));
+
+    for (const token of targetTokens) {
+      if (overlayIds.size === 0) continue;
+
+      // Merge with existing tracked overlays for this token
+      const existingOverlays = this.kKeyOverlaysCache.get(token.id) ?? new Set<string>();
+      const combinedOverlays = new Set([...existingOverlays, ...overlayIds]);
+
+      this.kKeyOverlaysCache.set(token.id, combinedOverlays);
+    }
+
+    this.logger.debug('K key overlays tracked', {
+      kKeyOverlaysSize: this.kKeyOverlaysCache.size,
+      kKeyOverlaysEntries: Array.from(this.kKeyOverlaysCache.entries()).map(
         ([tokenId, overlayIds]) => ({
           tokenId,
           overlayIds: Array.from(overlayIds)
@@ -235,12 +291,53 @@ export class KeyboardCoordinator {
   }
 
   /**
+   * Hides all K-key overlays and clears tracking cache.
+   */
+  private async hideAllKKeyOverlays(): Promise<void> {
+    this.logger.debug('Hiding K key overlays', {
+      tokenCount: this.kKeyOverlaysCache.size
+    });
+
+    const overlayTypesToHide = this.collectUniqueKKeyOverlayTypes();
+
+    this.logger.debug('K key overlay types to hide', {
+      overlayTypes: Array.from(overlayTypesToHide),
+      kKeyOverlaysSize: this.kKeyOverlaysCache.size,
+      kKeyOverlaysEntries: Array.from(this.kKeyOverlaysCache.entries()).map(
+        ([tokenId, overlayIds]) => ({
+          tokenId,
+          overlayIds: Array.from(overlayIds)
+        })
+      )
+    });
+
+    for (const overlayTypeId of overlayTypesToHide) {
+      this.overlayRenderer.hideAllOverlaysOfType(overlayTypeId);
+    }
+
+    this.kKeyOverlaysCache.clear();
+  }
+
+  /**
    * Collects all unique overlay type IDs from the tracking cache.
    */
   private collectUniqueOverlayTypes(): Set<string> {
     const uniqueTypes = new Set<string>();
 
     for (const overlayIds of this.mKeyOverlaysCache.values()) {
+      overlayIds.forEach(id => uniqueTypes.add(id));
+    }
+
+    return uniqueTypes;
+  }
+
+  /**
+   * Collects all unique overlay type IDs from the K key tracking cache.
+   */
+  private collectUniqueKKeyOverlayTypes(): Set<string> {
+    const uniqueTypes = new Set<string>();
+
+    for (const overlayIds of this.kKeyOverlaysCache.values()) {
       overlayIds.forEach(id => uniqueTypes.add(id));
     }
 

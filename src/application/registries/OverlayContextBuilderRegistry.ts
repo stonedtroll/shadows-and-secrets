@@ -13,6 +13,7 @@ import type { FoundryLogger } from '../../../lib/log4foundry/log4foundry.js';
 import { LoggerFactory } from '../../../lib/log4foundry/log4foundry.js';
 import { MODULE_ID } from '../../config.js';
 import { HealthArcContextBuilder } from '../coordinators/contextBuilders/HealthArcContextBuilder.js';
+import { TokenInfoContextBuilder } from '../coordinators/contextBuilders/TokenInfoContextBuilder.js';
 
 export class OverlayContextBuilderRegistry {
     private readonly builders = new Map<string, OverlayContextBuilder>();
@@ -169,7 +170,8 @@ export class OverlayContextBuilderRegistry {
      */
     private registerDefaultBuilders(): void {
         const defaultBuilders: Array<{ id: string; builder: OverlayContextBuilder }> = [
-            { id: 'health-arc', builder: new HealthArcContextBuilder() }
+            { id: 'health-arc', builder: new HealthArcContextBuilder() },
+            { id: 'token-info', builder: new TokenInfoContextBuilder() }
         ];
 
         for (const { id, builder } of defaultBuilders) {

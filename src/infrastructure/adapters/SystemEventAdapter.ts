@@ -160,8 +160,6 @@ export class SystemEventAdapter implements InitialisableService {
   }
 
   private handleTokenControl(token: Token, controlled: boolean): void {
-    this.logger.debug(`Token control changed: ${token.name} [${token.id}] - ${controlled}`);
-
     const event: TokenControlEvent = {
       tokenId: token.id,
       controlled: controlled
@@ -230,6 +228,7 @@ export class SystemEventAdapter implements InitialisableService {
 
     this.logger.debug(`Actor updated: ${actor.name} [${actor.id}]`,
       {
+        actor,
         changes,
         options,
         userId

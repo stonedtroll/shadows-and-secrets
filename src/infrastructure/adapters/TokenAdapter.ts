@@ -1,10 +1,11 @@
+import { Actor } from '../../domain/entities/Actor.js';
 import { Vector2 } from "../../domain/value-objects/Vector2.js";
 import { Rotation } from "../../domain/value-objects/Rotation.js";
 import { AbstractTokenAdapter } from "../../application/adapters/AbstractTokenAdapter.js";
 import { MovementTypes } from "../../domain/value-objects/Speed.js";
-import { TokenSheetAdapter } from "./TokenSheetAdapter.js";
-
+import { MODULE_ID } from "../../config.js"; 
 import { DISPOSITION, type DispositionValue } from "../../domain/constants/TokenDisposition.js";
+import { ActorAdapterFactory } from '../factories/ActorAdapterFactory.js';
 
 
 export class TokenAdapter extends AbstractTokenAdapter {
@@ -75,12 +76,25 @@ export class TokenAdapter extends AbstractTokenAdapter {
         return this.token.actor?.id || null;
     }
 
+    get actor(): Actor {
+        if (!this.token.actor) {
+            throw new Error(`Token ${this.name} (${this.id}) has no associated actor`);
+        }
+        
+        const adapter = ActorAdapterFactory.create(this.token.actor);
+        if (!adapter) {
+            throw new Error(`Failed to create adapter for actor of token ${this.name} [${this.id}]`);
+        }
+        
+        return new Actor(adapter);
+    }
+
     get actorName(): string | null {
         return this.token.actor?.name || null;
     }
 
-    get verticalHeight(): number {
-        return TokenSheetAdapter.getVerticalHeight(this.token);
+    get portrait(): string | null {
+        return this.token.actor?.img|| null;
     }
 
     get isSwarm(): boolean {
@@ -99,5 +113,37 @@ export class TokenAdapter extends AbstractTokenAdapter {
 
     get isBlockingObstacle(): boolean {
         return !this.isSwarm;
+    }
+
+    get trackingReferenceNumber(): string {
+        let trn = this.token.document.getFlag(MODULE_ID, 'trackingReferenceNumber') as number;
+        
+        if (!trn) {
+            // Generate a unique number between 001-999
+            trn = this.generateUniqueTrackingNumber();
+            
+            // Store it as a flag on the token
+            this.token.document.setFlag(MODULE_ID, 'trackingReferenceNumber', trn);
+        }
+        
+        return trn.toString().padStart(3, '0');
+    }
+
+    private generateUniqueTrackingNumber(): number {
+        const existingNumbers = new Set<number>();
+
+        canvas.tokens?.placeables.forEach(token => {
+            const existingTrn = token.document.getFlag(MODULE_ID, 'trackingReferenceNumber') as number;
+            if (existingTrn) {
+                existingNumbers.add(existingTrn);
+            }
+        });
+
+        let trn: number;
+        do {
+            trn = Math.floor(Math.random() * 99) + 1; 
+        } while (existingNumbers.has(trn));
+        
+        return trn;
     }
 }
