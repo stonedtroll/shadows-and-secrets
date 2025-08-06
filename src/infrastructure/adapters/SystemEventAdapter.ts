@@ -7,9 +7,7 @@
 import { EventBus } from '../events/EventBus.js';
 import { MODULE_ID } from '../../config.js';
 import { LoggerFactory, type FoundryLogger } from '../../../lib/log4foundry/log4foundry.js';
-import { TokenRepository } from '../repositories/TokenRepository.js';
-import { ActorRepository } from '../repositories/ActorRepository.js';
-import { UserRepository } from '../repositories/UserRepository.js';
+
 import type {
   ActorUpdateEvent,
   TokenControlEvent
@@ -19,12 +17,10 @@ import type { InitialisableService } from '../../domain/interfaces/Initialisable
 export class SystemEventAdapter implements InitialisableService {
   private readonly logger: FoundryLogger;
   private readonly registeredHooks: Map<string, number> = new Map();
-  private readonly tokenRepository: TokenRepository;
   private isInitialised = false;
 
   constructor(private readonly eventBus: EventBus) {
     this.logger = LoggerFactory.getInstance().getFoundryLogger(`${MODULE_ID}.SystemEventAdapter`);
-    this.tokenRepository = new TokenRepository();
   }
 
   /**
@@ -40,7 +36,7 @@ export class SystemEventAdapter implements InitialisableService {
 
     this.registerCanvasHooks();
     this.registerTokenHooks();
-    this.registerActorHooks(); 
+    this.registerActorHooks();
     this.registerSceneHooks();
     this.registerCombatHooks();
     this.registerSystemHooks();
@@ -126,7 +122,7 @@ export class SystemEventAdapter implements InitialisableService {
   /**
    * Helper to register and track hooks
    */
-  private registerHook(hookName: string, callback: Function): void {
+  private registerHook(hookName: keyof HookConfig, callback: Function): void {
     const hookId = Hooks.on(hookName, callback);
     this.registeredHooks.set(hookName, hookId);
   }
@@ -182,11 +178,11 @@ export class SystemEventAdapter implements InitialisableService {
 
   // Scene Event Handlers
 
-  private handlePreUpdateScene( document: Scene, changes: any, options: any, userId: string ): void {
+  private handlePreUpdateScene(document: Scene, changes: any, options: any, userId: string): void {
 
   }
 
-  private handleSceneUpdate( document: Scene, changes: any, options: any, userId: string ): void {
+  private handleSceneUpdate(document: Scene, changes: any, options: any, userId: string): void {
 
   }
 

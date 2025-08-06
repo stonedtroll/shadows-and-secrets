@@ -1,24 +1,21 @@
-/**
- * Common rendering utilities shared across multiple renderers
- */
-
 import * as PIXI from 'pixi.js';
 import { LoggerFactory, type FoundryLogger } from '../../../lib/log4foundry/log4foundry.js';
 import { MODULE_ID } from '../../config.js';
 
-export class RenderingUtils {
+/**
+ * Common rendering utilities shared across multiple renderers
+ */
+export class RenderingUtility {
     private static readonly logger: FoundryLogger = LoggerFactory.getInstance().getFoundryLogger(`${MODULE_ID}.RenderingUtils`);
 
     /**
      * Transforms a colour value from various formats to a numeric PIXI colour
      */
     static transformColour(colour?: string | number): number {
-        // Fast path for numeric values
         if (typeof colour === 'number') {
             return colour;
         }
 
-        // Handle string hex colours
         if (typeof colour === 'string' && colour) {
             // Remove # prefix if present
             const hex = colour.charAt(0) === '#' ? colour.slice(1) : colour;
@@ -26,37 +23,32 @@ export class RenderingUtils {
             // Validate hex length
             if (hex.length !== 3 && hex.length !== 6) {
                 this.logger.error('Invalid hex colour format:', colour);
-                return 0xFFFFFF; // Default white
+                return 0xFFFFFF; 
             }
 
-            // Expand shorthand hex (e.g., 'F0A' -> 'FF00AA')
             const fullHex = hex.length === 3
                 ? hex.charAt(0) + hex.charAt(0) + hex.charAt(1) + hex.charAt(1) + hex.charAt(2) + hex.charAt(2)
                 : hex;
 
-            // Parse hex to number
             const parsed = parseInt(fullHex, 16);
 
-            // Validate parsed result
             if (isNaN(parsed)) {
                 this.logger.error('Failed to parse hex colour:', colour);
-                return 0xFFFFFF; // Default white
+                return 0xFFFFFF; 
             }
 
             return parsed;
         }
 
-        // Default fallback
-        return 0xFFFFFF; // Default white
+        return 0xFFFFFF; 
     }
 
     /**
-     * Creates an optimised PIXI.Text object with standard settings
+     * Creates an PIXI.Text object with standard settings
      */
     static createOptimisedText(content: string, style: PIXI.TextStyle, alpha: number = 1): PIXI.Text {
         const text = new PIXI.Text(content, style);
         
-        // Optimise for clarity and performance
         text.resolution = window.devicePixelRatio * 5
         text.updateText(true);
         text.texture.baseTexture.scaleMode = PIXI.SCALE_MODES.LINEAR;
@@ -192,5 +184,86 @@ export class RenderingUtils {
     static prepareGraphics(graphics: PIXI.Graphics): void {
         graphics.clear();
         graphics.removeChildren();
+    }
+
+    /**
+     * Interpolate between two colours
+     */
+    static interpolateColour(colour1: number, colour2: number, factor: number): number {
+        factor = Math.max(0, Math.min(1, factor));
+
+        const r1 = (colour1 >> 16) & 0xFF;
+        const g1 = (colour1 >> 8) & 0xFF;
+        const b1 = colour1 & 0xFF;
+
+        const r2 = (colour2 >> 16) & 0xFF;
+        const g2 = (colour2 >> 8) & 0xFF;
+        const b2 = colour2 & 0xFF;
+
+        const r = Math.round(r1 + (r2 - r1) * factor);
+        const g = Math.round(g1 + (g2 - g1) * factor);
+        const b = Math.round(b1 + (b2 - b1) * factor);
+
+        return (r << 16) | (g << 8) | b;
+    }
+
+    /**
+     * Calculate gradient colour for a given percentage value across three colour stops
+     */
+    static getGradientColour(percentage: number, lowColour: number, midColour: number, highColour: number): number {
+      percentage = Math.max(0, Math.min(100, percentage));
+      
+      if (percentage <= 50) {
+        const factor = percentage / 50;
+        return this.interpolateColour(lowColour, midColour, factor);
+      } else {
+        const factor = (percentage - 50) / 50;
+        return this.interpolateColour(midColour, highColour, factor);
+      }
+    }
+
+    /**
+     * Render a gradient arc using segments
+     */
+    static renderGradientArc(
+      graphics: PIXI.Graphics,
+      startAngle: number,
+      endAngle: number,
+      radius: number,
+      width: number,
+      lowColour: number,
+      midColour: number,
+      highColour: number,
+      percentage: number,
+      anticlockwise: boolean = false,
+      segments: number = 32
+    ): void {
+      const totalAngle = endAngle - startAngle;
+      const segmentAngle = totalAngle / segments;
+      
+      for (let i = 0; i < segments; i++) {
+        const segmentStart = startAngle + (segmentAngle * i);
+        const segmentEnd = Math.min(segmentStart + segmentAngle, endAngle);
+
+        const segmentPercentage = (i / (segments - 1)) * percentage;
+
+        const segmentColour = this.getGradientColour(
+          segmentPercentage,
+          lowColour,
+          midColour,
+          highColour
+        );
+        
+        graphics.beginFill(0, 0);
+        graphics.lineStyle({
+          width,
+          color: segmentColour,
+          alpha: 1,
+          cap: PIXI.LINE_CAP.BUTT
+        });
+        
+        graphics.arc(0, 0, radius, segmentStart, segmentEnd, anticlockwise);
+        graphics.endFill();
+      }
     }
 }

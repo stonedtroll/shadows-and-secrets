@@ -12,6 +12,8 @@ export abstract class AbstractActorAdapter {
     abstract get maxHealth(): number;
     abstract get tempHealth(): number;
     abstract get tempMaxHealth(): number;
-    abstract get healthPercentage(): number;
+    abstract get anguish(): number;
+    abstract set anguish(value: number);
+    abstract get maxAnguish(): number;
     abstract fetchEquippedWeapons(): ReadonlyArray<Weapon>;
 }

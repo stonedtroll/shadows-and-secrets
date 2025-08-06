@@ -3,7 +3,7 @@ import type { OverlayRenderContext } from '../../domain/interfaces/OverlayRender
 import * as PIXI from 'pixi.js';
 import { MODULE_ID } from '../../config.js';
 import { LoggerFactory, type FoundryLogger } from '../../../lib/log4foundry/log4foundry.js';
-import { RenderingUtils } from '../utils/RenderingUtils.js';
+import { RenderingUtility } from '../utils/RenderingUtility.js';
 
 export class TokenInfoRenderer {
     private readonly logger: FoundryLogger;
@@ -13,7 +13,7 @@ export class TokenInfoRenderer {
     }
 
     render(graphics: PIXI.Graphics, context: OverlayRenderContext): void {
-        RenderingUtils.prepareGraphics(graphics);
+        RenderingUtility.prepareGraphics(graphics);
 
         const { token, tokenInfo, styling } = context;
         
@@ -31,7 +31,7 @@ export class TokenInfoRenderer {
             return;
         }
 
-        const textStyle = RenderingUtils.buildTextStyle({
+        const textStyle = RenderingUtility.buildTextStyle({
             font: styleConfig.font,
             fontSize: styleConfig.fontSize,
             fontColour: styleConfig.fontColour,
@@ -41,7 +41,7 @@ export class TokenInfoRenderer {
             stroke: false
         });
 
-        const textObject = RenderingUtils.createOptimisedText(
+        const textObject = RenderingUtility.createOptimisedText(
             trackingText, 
             textStyle, 
             styleConfig.fontOpacity

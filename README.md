@@ -4,7 +4,7 @@ A Foundry VTT add-on that deepens immersion by presenting live, context-sensitiv
 
 ## Here Be Dragons
 
-“I endeavoured to turn the ocean to steam by my will alone—only to find its waves dragging me down into oblivion.”
+“I was not afraid to die; Because I put my faith in my favourite dice”
 
 - Limited testing performed.
 - Slightly over-engineered.
@@ -16,14 +16,14 @@ A Foundry VTT add-on that deepens immersion by presenting live, context-sensitiv
 ### Health
 - **Health Arc**: A visual gauge of an actor’s current and temporary health. For tokens not owned by the player, accuracy depends on the controlled token’s passive perception.
 
+<p align=center>
+    <img alt="Health Arc" src="assets/images/documentation/health-arc.png" />
+</p>
+
 ### Tracking Reference Number
 - **Tally-Ho**: Assign all non-friendly tokens a unique three-digit TRN prefixed by Contact, Bogey, or Bandit based on their disposition (secret, neutral, or hostile). Now, the mage can say:
   
 “Tally-Ho! Bandits at 2 o’clock. Engaging with Fireball: Bandit 067, 089, 075, 066, and 033.”
-
-<p align=center>
-    <img alt="Health Arc" src="assets/images/documentation/health-arc.png" />
-</p>
 
 - **Health Display**: A clear, on-screen indicator showing the controlled token’s health status.
 

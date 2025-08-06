@@ -6,9 +6,13 @@ import type { OverlayDefinition } from '../../../domain/interfaces/OverlayDefini
 interface HealthArcContextOptions {
     healthArcStartAngle: number;
     healthArcEndAngle: number;
-    healthArcColour: string;
+    healthPercentage: number;
+    lowHealthArcColour: string;
+    midHealthArcColour: string;
+    highHealthArcColour: string;
     tempHealthArcStartAngle: number;
     tempHealthArcEndAngle: number;
+    tempHealthPercentage: number;
     tempHealthArcColour: string;
     backgroundStartAngle: number;
     backgroundEndAngle: number;
@@ -56,9 +60,13 @@ export class HealthArcContextBuilder implements OverlayContextBuilder<HealthArcC
             healthInfo: {
                 healthArcStartAngle: options.healthArcStartAngle,
                 healthArcEndAngle: options.healthArcEndAngle,
-                healthArcColour: options.healthArcColour,
+                healthPercentage: options.healthPercentage,
+                lowHealthArcColour: options.lowHealthArcColour,
+                midHealthArcColour: options.midHealthArcColour,
+                highHealthArcColour: options.highHealthArcColour,
                 tempHealthArcStartAngle: options.tempHealthArcStartAngle,
                 tempHealthArcEndAngle: options.tempHealthArcEndAngle,
+                tempHealthPercentage: options.tempHealthPercentage,
                 tempHealthArcColour: options.tempHealthArcColour,
                 backgroundStartAngle: options.backgroundStartAngle,
                 backgroundEndAngle: options.backgroundEndAngle,

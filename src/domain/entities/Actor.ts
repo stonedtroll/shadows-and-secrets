@@ -2,6 +2,7 @@ import type { AbstractActorAdapter } from '../../application/adapters/AbstractAc
 
 import { MovementTypes, Speed } from '../value-objects/Speed.js';
 import { Weapon } from '../value-objects/Weapon.js';
+import { Anguish } from '../value-objects/Anguish.js';
 
 export class Actor {
     private readonly _actorAdapter: AbstractActorAdapter;
@@ -46,5 +47,28 @@ export class Actor {
 
     get healthPercentage(): number {
         return this.maxHealth > 0 ? (this.health / this.maxHealth) * 100 : 0;
+    }
+    
+    get anguish(): number {
+        return this._actorAdapter.anguish;
+    }
+
+    set anguish(value: number) {
+        this._actorAdapter.anguish = value;
+    }
+
+    get maxAnguish(): number {
+        return this._actorAdapter.maxAnguish;
+    }   
+
+    get anguishPercentage(): number {
+        return this.maxAnguish > 0 ? (this.anguish / this.maxAnguish) * 100 : 0;
+    }
+
+    getAnguish(): Anguish {
+        return Anguish.create({
+            current: this.anguish,
+            max: this.maxAnguish
+        });
     }
 }

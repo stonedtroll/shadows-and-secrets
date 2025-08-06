@@ -109,9 +109,13 @@ interface HealthInfoContext {
 
   healthArcStartAngle: number;
   healthArcEndAngle: number;
-  healthArcColour: string;
+  healthPercentage: number;
+  lowHealthArcColour: string;
+  midHealthArcColour: string;
+  highHealthArcColour: string;
   tempHealthArcStartAngle: number;
   tempHealthArcEndAngle: number;
+  tempHealthPercentage: number;
   tempHealthArcColour: string;
   backgroundStartAngle: number;
   backgroundEndAngle: number;

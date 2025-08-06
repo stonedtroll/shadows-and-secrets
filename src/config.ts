@@ -4,6 +4,7 @@ export const MODULE_ABBR = 'SNS';
 
 export const SETTINGS = {
   LOG_LEVEL: 'log-level',
+  SHOW_HEALTH_DISPLAY: 'showHealthDisplay'
 } as const;
 
 export const LOG_LEVEL_CHOICES = {
@@ -37,13 +38,23 @@ export const CONSTANTS = {
   },
 
   COLOURS: {
+    // Canvas overlays
     BOUNDARY_HOVER: 0x00ff00,
     BOUNDARY_SELECTED: 0x0088ff,
     COLLISION: 0xff0000,
     FACING: 0xffff00,
     PATH: 0x00ffff,
     ELEVATION: 0xff00ff,
-    FACING_ARC: 0x8A6A1C
+    FACING_ARC: 0x8A6A1C,
+    
+    // Health visualisation colours (used by health arcs, health display, etc.)
+    HEALTH: {
+      BACKGROUND: '#222222',
+      HIGH: '#3F5C41',
+      MEDIUM: '#2F3D2E', 
+      LOW: '#5B1A18',
+      TEMPORARY: '#B34141'
+    }
   },
 
   ALPHA: {
@@ -81,3 +92,4 @@ export const CONSTANTS = {
 
 export type ModuleConstants = typeof CONSTANTS;
 export type LogLevelChoice = keyof typeof LOG_LEVEL_CHOICES;
+export type HealthColours = typeof CONSTANTS.COLOURS.HEALTH;

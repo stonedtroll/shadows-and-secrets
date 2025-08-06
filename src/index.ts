@@ -178,11 +178,11 @@ function getConfiguredLogLevel(): LogLevel {
 function configureLogging(logLevel: LogLevel): FoundryLogger {
   const factory = LoggerFactory.getInstance();
   factory.setDefaultLevel(logLevel);
+  factory.setDefaultColour(SolarisedColours.BLUE);
 
   return factory.getFoundryLogger(MODULE_ID, {
     level: logLevel,
-    useFoundryPrefix: true,
-    moduleIdColour: SolarisedColours.BLUE
+    useFoundryPrefix: true
   });
 }
 

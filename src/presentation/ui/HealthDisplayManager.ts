@@ -1,56 +1,67 @@
 /**
- * This module provides a visual health indicator that integrates with the game's hotbar.
+ * This module manages a dynamic health visualisation overlay that integrates with 
+ * the Foundry VTT hotbar. It provides real-time health tracking with animated gradient fills,
+ * character portraits, and bloodied state indicators.
  */
+
 import { LoggerFactory, type FoundryLogger } from '../../../lib/log4foundry/log4foundry.js';
-import { MODULE_ID } from '../../config.js';
+import { MODULE_ID, CONSTANTS } from '../../config.js';
 
 /**
- * Configuration constants for the health display
+ * Configuration constants for the health display system
  */
 const HEALTH_DISPLAY_CONFIG = {
+    // Asset paths
     FRAME_IMAGE_PATH: 'modules/shadows-and-secrets/assets/images/ui/health-display-variant-1-back.webp',
     FRONT_IMAGE_PATH: 'modules/shadows-and-secrets/assets/images/ui/health-display-variant-1-front.webp',
     BLOODIED_IMAGE_PATH: 'modules/shadows-and-secrets/assets/images/ui/bloodied.webp',
 
-    CIRCLE_DIAMETER: 133,
+    // Dimensions
+    CIRCLE_DIAMETER: 134,
     FRAME_SIZE: 150,
     CIRCLE_INSET: 0,
     
-    PORTRAIT_THRESHOLD: 0.75,  
-    BLOODIED_THRESHOLD: 0.5,   
+    // Behaviour thresholds
+    PORTRAIT_THRESHOLD: 0.75,
+    BLOODIED_THRESHOLD: 0.5,
     
+    // Animation settings
     DEFAULT_ANIMATION_SPEED: 0.05,
     ANIMATION_THRESHOLD: 0.001,
+    GRADIENT_SEGMENTS: 32,
 
-    HIGH_HEALTH_COLOUR: '#465C1A',  
-    LOW_HEALTH_COLOUR: '#6A1A1A',   
-    HEALTH_TEXT_COLOUR: '#D4C8B8',  
-    TEMP_HEALTH_COLOUR: '#B34141',  
+    // Colour configuration using centralised constants
+    HIGH_HEALTH_COLOUR: CONSTANTS.COLOURS.HEALTH.HIGH,
+    LOW_HEALTH_COLOUR: CONSTANTS.COLOURS.HEALTH.LOW,
+    HEALTH_TEXT_COLOUR: '#D4C8B8',
+    TEMP_HEALTH_COLOUR: CONSTANTS.COLOURS.HEALTH.TEMPORARY,
     
+    // Transition timings
     PORTRAIT_TRANSITION: '0.5s ease-in-out',
     BLOODIED_TRANSITION: '0.3s ease-in-out'
 } as const;
 
 /**
- * Manages the health display overlay for the Foundry VTT hotbar.
+ * Cached gradient data structure for performance optimisation
  */
-export class HealthDisplayManager {
-    private readonly logger: FoundryLogger;
-    
-    private container: HTMLElement | null = null;
-    private bloodiedImage: HTMLImageElement | null = null;
-    private portraitImage: HTMLImageElement | null = null;
-    
-    private pixiApp: PIXI.Application | null = null;
-    private fillCircle: PIXI.Graphics | null = null;
-    private healthText: PIXI.Text | PIXI.Container | null = null;
-    private ticker: PIXI.Ticker | null = null;
+interface GradientCache {
+    readonly segments: number;
+    colours: readonly number[];
+    calculated: boolean;
+}
 
-    private fillLevel = 0;
-    private targetFillLevel = 0;
-    private animationSpeed: number = HEALTH_DISPLAY_CONFIG.DEFAULT_ANIMATION_SPEED; 
-    private currentPortraitPath: string | null = null;
-    
+/**
+ * Health display update parameters
+ */
+interface HealthDisplayData {
+    health: number;
+    healthPercentage: number;
+    tempHealth?: number;
+    portrait?: string | null;
+}
+
+export class HealthDisplayManager {
+
     private static readonly CIRCLE_OFFSET_TOP = 
         (HEALTH_DISPLAY_CONFIG.FRAME_SIZE - HEALTH_DISPLAY_CONFIG.CIRCLE_DIAMETER) / 2 + 
         HEALTH_DISPLAY_CONFIG.CIRCLE_INSET;
@@ -58,6 +69,34 @@ export class HealthDisplayManager {
     private static readonly CIRCLE_OFFSET_LEFT = 
         (HEALTH_DISPLAY_CONFIG.FRAME_SIZE - HEALTH_DISPLAY_CONFIG.CIRCLE_DIAMETER) / 2 + 
         HEALTH_DISPLAY_CONFIG.CIRCLE_INSET;
+    
+    private readonly logger: FoundryLogger;
+    
+    // DOM elements
+    private container: HTMLElement | null = null;
+    private bloodiedImage: HTMLImageElement | null = null;
+    private portraitImage: HTMLImageElement | null = null;
+    
+    // PIXI.js components
+    private pixiApp: PIXI.Application | null = null;
+    private fillCircle: PIXI.Graphics | null = null;
+    private healthText: PIXI.Text | PIXI.Container | null = null;
+    private ticker: PIXI.Ticker | null = null;
+
+    // Animation state
+    private fillLevel = 0;
+    private targetFillLevel = 0;
+    private animationSpeed: number = HEALTH_DISPLAY_CONFIG.DEFAULT_ANIMATION_SPEED;
+    
+    // Content state
+    private currentPortraitPath: string | null = null;
+    
+    // Performance optimisation
+    private readonly gradientCache: GradientCache = {
+        segments: HEALTH_DISPLAY_CONFIG.GRADIENT_SEGMENTS,
+        colours: [],
+        calculated: false
+    };
 
     constructor() {
         this.logger = LoggerFactory.getInstance().getFoundryLogger(`${MODULE_ID}.HealthDisplayManager`);
@@ -66,7 +105,7 @@ export class HealthDisplayManager {
     /**
      * Initialises the health display system by registering Foundry hooks
      */
-    initialise(): void {
+    public initialise(): void {
         Hooks.on('renderHotbar', this.onRenderHotbar.bind(this));
         this.logger.debug('HealthDisplayManager initialised with PIXI.js v7');
     }
@@ -93,39 +132,42 @@ export class HealthDisplayManager {
         hotbarElement.classList.add('has-health-display');
 
         this.container = healthDisplay;
-        this.logger.debug('Health display successfully injected');
+        
+        const controlledTokens = canvas.tokens?.controlled ?? [];
+        if (controlledTokens.length === 0) {
+            this.logger.debug('Health display created but remains hidden - no controlled tokens');
+        }
+        
+        this.logger.debug('Health display successfully injected', { 
+            visible: controlledTokens.length > 0,
+            controlledCount: controlledTokens.length 
+        });
     }
 
     /**
-     * Finds the hotbar element within the provided HTML
+     * Locates the hotbar element within the provided HTML structure
      */
     private findHotbarElement(html: HTMLElement): HTMLElement | null {
-        if (html.id === 'hotbar') {
-            return html;
-        }
-        return html.querySelector('#hotbar') as HTMLElement;
+        return html.id === 'hotbar' ? html : html.querySelector('#hotbar') as HTMLElement;
     }
 
     /**
-     * Creates the complete health display DOM structure
+     * Creates the complete health display DOM structure with proper layering
      */
     private createHealthDisplayElement(): HTMLElement {
         const healthDisplay = this.createContainer();
         const frameWrapper = this.createFrameWrapper();
         
+        // Layer stack (bottom to top)
         const frameImage = this.createFrameImage();           // z-index: 1
         const portraitImage = this.createPortraitImage();     // z-index: 2
         const bloodiedImage = this.createBloodiedImage();     // z-index: 3
         const canvasWrapper = this.createCanvasWrapper();     // z-index: 4
         const frontImage = this.createFrontImage();           // z-index: 5
 
-        this.initializePixiApp(canvasWrapper);
+        this.initialisePixiApp(canvasWrapper);
 
-        frameWrapper.appendChild(frameImage);
-        frameWrapper.appendChild(portraitImage);
-        frameWrapper.appendChild(bloodiedImage);
-        frameWrapper.appendChild(canvasWrapper);
-        frameWrapper.appendChild(frontImage);
+        frameWrapper.append(frameImage, portraitImage, bloodiedImage, canvasWrapper, frontImage);
         healthDisplay.appendChild(frameWrapper);
 
         this.loadImagesAndInitialise(frameImage, bloodiedImage, frontImage);
@@ -140,18 +182,21 @@ export class HealthDisplayManager {
         const container = document.createElement('div');
         container.id = 'health-display';
         container.className = 'health-display';
+        container.style.display = 'none'; // Start hidden by default
         return container;
     }
 
     /**
-     * Creates the frame wrapper element
+     * Creates the frame wrapper element for positioning
      */
     private createFrameWrapper(): HTMLElement {
         const wrapper = document.createElement('div');
         wrapper.className = 'health-display-frame';
-        wrapper.style.position = 'relative';
-        wrapper.style.width = `${HEALTH_DISPLAY_CONFIG.FRAME_SIZE}px`;
-        wrapper.style.height = `${HEALTH_DISPLAY_CONFIG.FRAME_SIZE}px`;
+        wrapper.style.cssText = `
+            position: relative;
+            width: ${HEALTH_DISPLAY_CONFIG.FRAME_SIZE}px;
+            height: ${HEALTH_DISPLAY_CONFIG.FRAME_SIZE}px;
+        `;
         return wrapper;
     }
 
@@ -179,7 +224,7 @@ export class HealthDisplayManager {
     }
 
     /**
-     * Creates the portrait image element
+     * Creates the character portrait image element with circular masking
      */
     private createPortraitImage(): HTMLImageElement {
         const img = document.createElement('img');
@@ -208,7 +253,7 @@ export class HealthDisplayManager {
     }
 
     /**
-     * Creates the bloodied overlay image element
+     * Creates the bloodied overlay image element for low health states
      */
     private createBloodiedImage(): HTMLImageElement {
         const img = document.createElement('img');
@@ -235,7 +280,7 @@ export class HealthDisplayManager {
     }
 
     /**
-     * Creates the canvas wrapper for PIXI content
+     * Creates the canvas wrapper for PIXI.js content
      */
     private createCanvasWrapper(): HTMLElement {
         const wrapper = document.createElement('div');
@@ -251,7 +296,7 @@ export class HealthDisplayManager {
     }
 
     /**
-     * Creates the front overlay image element
+     * Creates the front overlay image element for visual effects
      */
     private createFrontImage(): HTMLImageElement {
         const img = document.createElement('img');
@@ -275,9 +320,9 @@ export class HealthDisplayManager {
     }
 
     /**
-     * Initialises the PIXI application
+     * Initialises the PIXI.js application.
      */
-    private initializePixiApp(canvasWrapper: HTMLElement): void {
+    private initialisePixiApp(canvasWrapper: HTMLElement): void {
         this.pixiApp = new PIXI.Application({
             width: HEALTH_DISPLAY_CONFIG.CIRCLE_DIAMETER,
             height: HEALTH_DISPLAY_CONFIG.CIRCLE_DIAMETER,
@@ -292,20 +337,18 @@ export class HealthDisplayManager {
     }
 
     /**
-     * Loads required images and initialises PIXI content
+     * Loads required images and initialises PIXI.js content
      */
-    private loadImagesAndInitialise(frameImage: HTMLImageElement, bloodiedImage: HTMLImageElement, frontImage: HTMLImageElement): void {
-        Promise.all([
-            this.loadImage(frameImage.src),
-            this.loadImage(bloodiedImage.src),
-            this.loadImage(frontImage.src)
-        ]).then(() => {
-            this.createPixiContent();
-        }).catch(error => {
-            this.logger.error('Failed to load health display images', error);
-            // Create PIXI content anyway with default positioning
-            this.createPixiContent();
-        });
+    private loadImagesAndInitialise(...images: HTMLImageElement[]): void {
+        const imagePromises = images.map(img => this.loadImage(img.src));
+        
+        Promise.all(imagePromises)
+            .then(() => this.createPixiContent())
+            .catch(error => {
+                this.logger.error('Failed to load health display images', error);
+                // Create PIXI content anyway with fallback behaviour
+                this.createPixiContent();
+            });
     }
 
     /**
@@ -321,29 +364,25 @@ export class HealthDisplayManager {
     }
 
     /**
-     * Creates the dynamic PIXI content (fill circle and text)
+     * Creates the dynamic PIXI.js content (fill circle and text)
      */
     private createPixiContent(): void {
         if (!this.pixiApp) return;
 
-        // Create fill circle
         this.fillCircle = new PIXI.Graphics();
-        this.fillCircle.alpha = 0.3;
+        this.fillCircle.alpha = 0.7;
         this.pixiApp.stage.addChild(this.fillCircle);
 
-        // Create health text
         this.createHealthText();
 
-        // Start animation ticker
         this.ticker = this.pixiApp.ticker;
         this.ticker.add(this.animate, this);
 
-        // Initial render
         this.updateFillCircle();
     }
 
     /**
-     * Creates the initial health text element
+     * Creates the initial health text element with default styling
      */
     private createHealthText(): void {
         if (!this.pixiApp) return;
@@ -359,16 +398,13 @@ export class HealthDisplayManager {
         this.healthText.anchor.set(0.5);
 
         const radius = HEALTH_DISPLAY_CONFIG.CIRCLE_DIAMETER / 2;
-        this.healthText.position.set(
-            radius,
-            radius + (radius * 0.4)
-        );
+        this.healthText.position.set(radius, radius + (radius * 0.4));
 
         this.pixiApp.stage.addChild(this.healthText);
     }
 
     /**
-     * Animation loop for smooth health transitions
+     * Main animation loop for smooth health transitions using delta time
      */
     private animate(delta: number): void {
         if (Math.abs(this.fillLevel - this.targetFillLevel) < HEALTH_DISPLAY_CONFIG.ANIMATION_THRESHOLD) {
@@ -386,7 +422,103 @@ export class HealthDisplayManager {
     }
 
     /**
-     * Updates the fill circle visualisation
+     * Pre-calculates gradient colours once.
+     */
+    private calculateGradientCache(): void {
+        const { HIGH, MEDIUM, LOW } = CONSTANTS.COLOURS.HEALTH;
+        
+        const lowColour = this.hexToNumber(LOW);
+        const midColour = this.hexToNumber(MEDIUM);
+        const highColour = this.hexToNumber(HIGH);
+        
+        const colours: number[] = [];
+        
+        for (let i = 0; i < this.gradientCache.segments; i++) {
+            const percentage = ((this.gradientCache.segments - 1 - i) / (this.gradientCache.segments - 1)) * 100;
+            
+            let colour: number;
+            if (percentage <= 50) {
+                const factor = percentage / 50;
+                colour = this.interpolateColour(lowColour, midColour, factor);
+            } else {
+                const factor = (percentage - 50) / 50;
+                colour = this.interpolateColour(midColour, highColour, factor);
+            }
+            
+            colours.push(colour);
+        }
+        
+        this.gradientCache.colours = Object.freeze(colours);
+        this.gradientCache.calculated = true;
+        
+        this.logger.debug('Gradient cache calculated', {
+            segments: this.gradientCache.segments,
+            colours: this.gradientCache.colours.length
+        });
+    }
+
+    /**
+     * Renders a gradient-filled circle using pre-calculated colours
+     * Draws horizontal slices to create smooth gradient effect
+     */
+    private renderGradientCircle(
+        graphics: PIXI.Graphics,
+        centerX: number,
+        centerY: number,
+        radius: number
+    ): void {
+        const { segments, colours } = this.gradientCache;
+        const sliceHeight = (radius * 2) / segments;
+        
+        for (let i = 0; i < segments; i++) {
+            const y = -radius + (i * sliceHeight);
+            const colour = colours[i];
+
+            const distanceFromCenter = Math.abs(y + sliceHeight / 2);
+            if (distanceFromCenter >= radius) continue;
+            
+            const halfWidth = Math.sqrt(radius * radius - distanceFromCenter * distanceFromCenter);
+
+            graphics.beginFill(colour);
+            graphics.drawRect(
+                centerX - halfWidth,
+                centerY + y,
+                halfWidth * 2,
+                sliceHeight
+            );
+            graphics.endFill();
+        }
+    }
+
+    /**
+     * Recursively cleans up existing masks to prevent memory leaks
+     */
+    private clearExistingMasks(): void {
+        if (!this.fillCircle || !this.pixiApp) return;
+        
+        const cleanupMask = (mask: PIXI.DisplayObject): void => {
+            if ('mask' in mask && mask.mask) {
+                cleanupMask(mask.mask as PIXI.DisplayObject);
+                mask.mask = null;
+            }
+            
+            if (mask.parent) {
+                mask.parent.removeChild(mask);
+            }
+            
+            if ('destroy' in mask && typeof mask.destroy === 'function') {
+                mask.destroy();
+            }
+        };
+        
+        if (this.fillCircle.mask) {
+            cleanupMask(this.fillCircle.mask as PIXI.DisplayObject);
+            this.fillCircle.mask = null;
+        }
+    }
+
+    /**
+     * Updates the fill circle visualisation with gradient and masking
      */
     private updateFillCircle(): void {
         if (!this.fillCircle || !this.pixiApp) return;
@@ -396,52 +528,83 @@ export class HealthDisplayManager {
         const centerY = radius;
 
         this.fillCircle.clear();
-        if (this.fillCircle.mask) {
-            this.pixiApp.stage.removeChild(this.fillCircle.mask as PIXI.DisplayObject);
-            this.fillCircle.mask = null;
-        }
+        this.clearExistingMasks();
 
         this.updateBloodiedOverlay();
 
         if (this.fillLevel <= 0) return;
 
-        const healthColour = this.calculateHealthColour(
-            this.fillLevel,
-            HEALTH_DISPLAY_CONFIG.HIGH_HEALTH_COLOUR,
-            HEALTH_DISPLAY_CONFIG.LOW_HEALTH_COLOUR
-        );
+        if (!this.gradientCache.calculated) {
+            this.calculateGradientCache();
+        }
 
-        const colourNum = parseInt(healthColour.replace('#', ''), 16);
-        this.fillCircle.beginFill(colourNum);
+        this.renderGradientCircle(this.fillCircle, centerX, centerY, radius);
 
-        this.fillCircle.drawCircle(centerX, centerY, radius);
-
+        const combinedMask = new PIXI.Graphics();
+        
         if (this.fillLevel < 1) {
             const fillHeight = HEALTH_DISPLAY_CONFIG.CIRCLE_DIAMETER * this.fillLevel;
             const startY = HEALTH_DISPLAY_CONFIG.CIRCLE_DIAMETER - fillHeight;
+            
+            combinedMask.beginFill(0xFFFFFF);
+            combinedMask.drawRect(0, startY, HEALTH_DISPLAY_CONFIG.CIRCLE_DIAMETER, fillHeight);
+            combinedMask.endFill();
 
-            const mask = new PIXI.Graphics();
-            mask.beginFill(0xFFFFFF);
-            mask.drawRect(0, startY, HEALTH_DISPLAY_CONFIG.CIRCLE_DIAMETER, fillHeight);
-            mask.endFill();
-
-            this.fillCircle.mask = mask;
-            this.pixiApp.stage.addChild(mask);
+            const circleClip = new PIXI.Graphics();
+            circleClip.beginFill(0xFFFFFF);
+            circleClip.drawCircle(centerX, centerY, radius);
+            circleClip.endFill();
+            
+            combinedMask.mask = circleClip;
+            this.pixiApp.stage.addChild(circleClip);
+        } else {
+            combinedMask.beginFill(0xFFFFFF);
+            combinedMask.drawCircle(centerX, centerY, radius);
+            combinedMask.endFill();
         }
-
-        this.fillCircle.endFill();
+        
+        this.fillCircle.mask = combinedMask;
+        this.pixiApp.stage.addChild(combinedMask);
     }
 
     /**
-     * Updates the bloodied overlay visibility based on health
+     * Interpolates between two colours using linear interpolation
+     */
+    private interpolateColour(colour1: number, colour2: number, factor: number): number {
+        factor = Math.max(0, Math.min(1, factor));
+
+        const r1 = (colour1 >> 16) & 0xFF;
+        const g1 = (colour1 >> 8) & 0xFF;
+        const b1 = colour1 & 0xFF;
+
+        const r2 = (colour2 >> 16) & 0xFF;
+        const g2 = (colour2 >> 8) & 0xFF;
+        const b2 = colour2 & 0xFF;
+
+        const r = Math.round(r1 + (r2 - r1) * factor);
+        const g = Math.round(g1 + (g2 - g1) * factor);
+        const b = Math.round(b1 + (b2 - b1) * factor);
+
+        return (r << 16) | (g << 8) | b;
+    }
+
+    /**
+     * Converts hex colour string to numeric value for PIXI.js
+     */
+    private hexToNumber(hex: string): number {
+        return parseInt(hex.replace('#', ''), 16);
+    }
+
+    /**
+     * Updates bloodied overlay visibility and intensity based on health level
      */
     private updateBloodiedOverlay(): void {
         if (!this.bloodiedImage) return;
 
         if (this.fillLevel < HEALTH_DISPLAY_CONFIG.BLOODIED_THRESHOLD && this.fillLevel > 0) {
-            const scaledHealth = this.fillLevel * 2; // 0 to 1 range
+            const scaledHealth = this.fillLevel * 2; // Normalise to 0-1 range
             const opacityRange = 1 - scaledHealth;
-            const opacity = 0.1 + (0.4 * opacityRange); // 0.1 to 0.5 opacity range
+            const opacity = 0.1 + (0.8 * opacityRange); // 0.1 to 0.9 opacity range
             this.bloodiedImage.style.opacity = opacity.toString();
         } else {
             this.bloodiedImage.style.opacity = '0';
@@ -449,40 +612,7 @@ export class HealthDisplayManager {
     }
 
     /**
-     * Calculates interpolated colour based on health percentage
-     */
-    private calculateHealthColour(
-        healthPercentage: number,
-        highHealthColour: string,
-        lowHealthColour: string
-    ): string {
-        const highColourNum = parseInt(highHealthColour.replace('#', ''), 16);
-        const lowColourNum = parseInt(lowHealthColour.replace('#', ''), 16);
-
-        const highR = (highColourNum >> 16) & 0xFF;
-        const highG = (highColourNum >> 8) & 0xFF;
-        const highB = highColourNum & 0xFF;
-
-        const lowR = (lowColourNum >> 16) & 0xFF;
-        const lowG = (lowColourNum >> 8) & 0xFF;
-        const lowB = lowColourNum & 0xFF;
-
-        const t = Math.max(0, Math.min(1, 1 - healthPercentage));
-
-        const lerp = (start: number, end: number, t: number): number => {
-            return Math.round(start + (end - start) * t);
-        };
-
-        const r = lerp(highR, lowR, t);
-        const g = lerp(highG, lowG, t);
-        const b = lerp(highB, lowB, t);
-
-        const toHex = (n: number): string => n.toString(16).padStart(2, '0');
-        return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-    }
-
-    /**
-     * Sets the portrait image
+     * Sets and loads the character portrait image
      */
     private setPortrait(portraitPath: string | null): void {
         if (!this.portraitImage) {
@@ -521,7 +651,7 @@ export class HealthDisplayManager {
     }
 
     /**
-     * Updates portrait visibility based on health level
+     * Updates portrait visibility based on health threshold
      */
     private updatePortraitVisibility(): void {
         if (!this.portraitImage) return;
@@ -537,7 +667,7 @@ export class HealthDisplayManager {
     }
 
     /**
-     * Updates the health text display
+     * Updates health text display with support for temporary health
      */
     private updateHealthText(health: number, tempHealth?: number): void {
         if (!this.healthText || !this.pixiApp) return;
@@ -584,7 +714,7 @@ export class HealthDisplayManager {
     }
 
     /**
-     * Creates or updates the health container with temp health
+     * Creates or updates health container with temporary health display
      */
     private createOrUpdateHealthContainer(
         health: number, 
@@ -609,8 +739,7 @@ export class HealthDisplayManager {
             healthTextObj.position.x = startX;
             tempHealthTextObj.position.x = startX + healthTextObj.width + 4;
 
-            textContainer.addChild(healthTextObj);
-            textContainer.addChild(tempHealthTextObj);
+            textContainer.addChild(healthTextObj, tempHealthTextObj);
 
             const radius = HEALTH_DISPLAY_CONFIG.CIRCLE_DIAMETER / 2;
             textContainer.position.set(radius, radius + (radius * 0.4));
@@ -643,7 +772,7 @@ export class HealthDisplayManager {
     }
 
     /**
-     * Creates or updates simple health text (no temp health)
+     * Creates or updates simple health text without temporary health
      */
     private createOrUpdateSimpleHealthText(health: number, healthStyle: PIXI.TextStyle): void {
         if (!this.pixiApp) return;
@@ -663,7 +792,7 @@ export class HealthDisplayManager {
     }
 
     /**
-     * Helper method to recreate health text display
+     * Helper method to completely recreate health text display
      */
     private recreateHealthText(health: number, tempHealth?: number): void {
         if (this.healthText?.parent) {
@@ -675,12 +804,11 @@ export class HealthDisplayManager {
     }
 
     /**
-     * Sets the fill level with animation
+     * Sets the fill level with optional animation
      */
     private setFillLevel(level: number): void {
         const newLevel = Math.max(0, Math.min(1, level));
 
-        // Force immediate update when dropping to 0
         if (newLevel === 0) {
             this.fillLevel = newLevel;
             this.targetFillLevel = newLevel;
@@ -697,40 +825,67 @@ export class HealthDisplayManager {
     /**
      * Sets the animation speed for health transitions
      */
-    setAnimationSpeed(speed: number): void {
+    public setAnimationSpeed(speed: number): void {
         this.animationSpeed = Math.max(0.01, Math.min(1, speed));
     }
 
     /**
      * Updates the health display with new values
      */
-    updateHealthDisplay(
+    public updateHealthDisplay(data: HealthDisplayData): void;
+    public updateHealthDisplay(
         health: number, 
         healthPercentage: number, 
         tempHealth?: number, 
         portrait?: string | null
+    ): void;
+    public updateHealthDisplay(
+        healthOrData: number | HealthDisplayData,
+        healthPercentage?: number,
+        tempHealth?: number,
+        portrait?: string | null
     ): void {
-        this.setFillLevel(healthPercentage);
-        this.updateHealthText(health, tempHealth);
-        this.setPortrait(portrait ?? null);
+        let health: number;
+        let percentage: number;
+        let temp: number | undefined;
+        let portraitPath: string | null | undefined;
+
+        if (typeof healthOrData === 'object') {
+            ({ health, healthPercentage: percentage, tempHealth: temp, portrait: portraitPath } = healthOrData);
+        } else {
+            health = healthOrData;
+            percentage = healthPercentage!;
+            temp = tempHealth;
+            portraitPath = portrait;
+        }
+
+        if (this.container && health > 0) {
+            this.container.style.display = 'block';
+        }
+        
+        this.setFillLevel(percentage);
+        this.updateHealthText(health, temp);
+        this.setPortrait(portraitPath ?? null);
 
         this.logger.debug('Health display updated', {
             health,
-            healthPercentage: `${(healthPercentage * 100).toFixed(0)}%`,
-            tempHealth: tempHealth ?? 'none',
-            portrait: portrait ?? 'none'
+            healthPercentage: `${(percentage * 100).toFixed(0)}%`,
+            tempHealth: temp ?? 'none',
+            portrait: portraitPath ?? 'none',
+            visible: health > 0
         });
     }
 
     /**
-     * Clears the health display (sets to zero and hides elements)
+     * Clears the health display and hides all elements
      */
-    clear(): void {
+    public clear(): void {
         this.fillLevel = 0;
         this.targetFillLevel = 0;
         
         this.updateFillCircle();
         
+        // Hide health text
         if (this.healthText) {
             this.healthText.visible = false;
             
@@ -739,17 +894,62 @@ export class HealthDisplayManager {
             }
         }
         
+        // Hide portrait with transition
         if (this.portraitImage) {
             this.portraitImage.style.opacity = '0';
+            this.currentPortraitPath = null;
         }
         
-        this.logger.debug('Health display cleared');
+        // Hide bloodied overlay
+        if (this.bloodiedImage) {
+            this.bloodiedImage.style.opacity = '0';
+        }
+        
+        // Hide entire container
+        if (this.container) {
+            this.container.style.display = 'none';
+        }
+        
+        this.logger.debug('Health display cleared and hidden');
     }
 
     /**
-     * Destroys the health display and cleans up resources
+     * Checks if the health display is currently visible
      */
-    destroy(): void {
+    public isVisible(): boolean {
+        return this.container?.style.display !== 'none';
+    }
+
+    /**
+     * Forces the health display to be hidden
+     */
+    public hide(): void {
+        if (this.container) {
+            this.container.style.display = 'none';
+        }
+        this.logger.debug('Health display forcibly hidden');
+    }
+
+    /**
+     * Forces the health display to be shown (if it has content)
+     */
+    public show(): void {
+        if (this.container && this.fillLevel > 0) {
+            this.container.style.display = 'block';
+        }
+        this.logger.debug('Health display shown', { hasContent: this.fillLevel > 0 });
+    }
+
+    /**
+     * Destroys the health display and cleans up all resources
+     * 
+     * This method should be called when the health display is no longer needed
+     * to prevent memory leaks and ensure proper cleanup.
+     */
+    public destroy(): void {
+        this.gradientCache.calculated = false;
+        (this.gradientCache.colours as number[]).length = 0;
+
         if (this.ticker) {
             this.ticker.remove(this.animate, this);
             this.ticker = null;
@@ -758,7 +958,7 @@ export class HealthDisplayManager {
         if (this.pixiApp) {
             if (this.healthText) {
                 if (this.healthText instanceof PIXI.Container) {
-                    this.healthText.destroy(true);
+                    this.healthText.destroy({ children: true });
                 } else {
                     this.healthText.destroy();
                 }
@@ -784,6 +984,6 @@ export class HealthDisplayManager {
             this.container = null;
         }
         
-        this.logger.debug('Health display destroyed');
+        this.logger.debug('Health display destroyed and resources cleaned up');
     }
 }

@@ -292,6 +292,7 @@ declare class LoggerFactory {
     private static instance;
     private readonly loggers;
     private defaultLevel;
+    private defaultColour;
     /**
      * Private constructor to ensure singleton pattern.
      */
@@ -330,6 +331,12 @@ declare class LoggerFactory {
      * @returns A FoundryLogger instance
      */
     getFoundryLogger(moduleId: string, options?: FoundryLoggerOptions): FoundryLogger;
+    /**
+     * Set the default moduleIdColour for all new loggers.
+     * @param colour - The default colour (hex, rgb, or CSS colour name)
+     * @returns The LoggerFactory instance for method chaining
+     */
+    setDefaultColour(colour: string): LoggerFactory;
     /**
      * Set the default log level for new logger instances.
      * @param level - The default log level
@@ -373,6 +380,10 @@ export declare interface LoggerOptions {
      * Custom context to be included with all logs
      */
     context?: Record<string, unknown>;
+    /**
+     * Colour for the module identifier. Can be hex, rgb, or CSS colour name.
+     */
+    moduleIdColour?: string;
 }
 
 /**

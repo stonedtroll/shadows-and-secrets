@@ -17,6 +17,7 @@ import { MODULE_ID } from '../../../config.js';
 import { HealthObfuscator } from '../../../domain/services/HealthObfuscator.js';
 import { DISPOSITION } from '../../../domain/constants/TokenDisposition.js';
 import { TokenRepository } from '../../../infrastructure/repositories/TokenRepository.js'; 
+import { CONSTANTS } from '../../../config.js';
 
 export class OverlayCoordinatorHelper {
     private readonly logger: FoundryLogger;
@@ -447,29 +448,22 @@ export class OverlayCoordinatorHelper {
         overlayId: string,
         targetToken: Token,
         sourceToken?: Token,
-    ): any {  // Using 'any' since different overlays have different option types
-
+    ): any {
         switch (overlayId) {
             case 'health-arc':
                 const obfuscatedHealth = this.healthObfuscator.obfuscateHealth(
                     targetToken
                 );
 
+                const backgroundColour = CONSTANTS.COLOURS.HEALTH.BACKGROUND;
+                const highHealthArcColour = CONSTANTS.COLOURS.HEALTH.HIGH;
+                const midHealthArcColour = CONSTANTS.COLOURS.HEALTH.MEDIUM;
+                const lowHealthArcColour = CONSTANTS.COLOURS.HEALTH.LOW;
+                const tempHealthArcColour = CONSTANTS.COLOURS.HEALTH.TEMPORARY;
+
                 const { health, maxHealth, tempHealth, accuracy } = obfuscatedHealth;
                 const healthPercentage = Math.min(1, health / maxHealth);
                 const tempHealthPercentage = tempHealth > 0 ? Math.min(1, tempHealth / maxHealth) : 0;
-
-                const backgroundColour = "#222222";
-                const highHealthColour = "#465C1A";
-                const lowHealthColour = "#6A1A1A";
-                const tempHealthArcColour = "#B34141";
-
-                const healthArcColour = this.calculateHealthColour(
-                    healthPercentage,
-                    highHealthColour,
-                    lowHealthColour
-                );
-
                 const arcRadius = targetToken.radius + 6;
                 const arcWidth = 4;
 
@@ -496,9 +490,13 @@ export class OverlayCoordinatorHelper {
                 return {
                     healthArcStartAngle,
                     healthArcEndAngle,
-                    healthArcColour,
+                    healthPercentage: healthPercentage * 100,
+                    lowHealthArcColour,
+                    midHealthArcColour,
+                    highHealthArcColour,
                     tempHealthArcStartAngle,
                     tempHealthArcEndAngle,
+                    tempHealthPercentage: tempHealthPercentage * 100,
                     tempHealthArcColour,
                     backgroundStartAngle,
                     backgroundEndAngle,
@@ -549,38 +547,5 @@ export class OverlayCoordinatorHelper {
             default:
                 return {};
         }
-    }
-
-    /**
-     * Calculates an interpolated colour based on health percentage.
-     */
-    private calculateHealthColour(
-        healthPercentage: number,
-        highHealthColour: string,
-        lowHealthColour: string
-    ): string {
-        const highColourNum = parseInt(highHealthColour.replace('#', ''), 16);
-        const lowColourNum = parseInt(lowHealthColour.replace('#', ''), 16);
-
-        const highR = (highColourNum >> 16) & 0xFF;
-        const highG = (highColourNum >> 8) & 0xFF;
-        const highB = highColourNum & 0xFF;
-
-        const lowR = (lowColourNum >> 16) & 0xFF;
-        const lowG = (lowColourNum >> 8) & 0xFF;
-        const lowB = lowColourNum & 0xFF;
-
-        const t = Math.max(0, Math.min(1, 1 - healthPercentage));
-
-        const lerp = (start: number, end: number, t: number): number => {
-            return Math.round(start + (end - start) * t);
-        };
-
-        const r = lerp(highR, lowR, t);
-        const g = lerp(highG, lowG, t);
-        const b = lerp(highB, lowB, t);
-
-        const toHex = (n: number): string => n.toString(16).padStart(2, '0');
-        return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
     }
 }

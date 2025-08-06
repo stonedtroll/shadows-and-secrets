@@ -3,7 +3,7 @@ import type { OverlayRenderContext } from '../../domain/interfaces/OverlayRender
 import * as PIXI from 'pixi.js';
 import { MODULE_ID } from '../../config.js';
 import { LoggerFactory, type FoundryLogger } from '../../../lib/log4foundry/log4foundry.js';
-import { RenderingUtils } from '../utils/RenderingUtils.js';
+import { RenderingUtility } from '../utils/RenderingUtility.js';
 
 export class HealthArcRenderer {
   private readonly logger: FoundryLogger;
@@ -28,17 +28,17 @@ export class HealthArcRenderer {
     const radius = context.healthInfo.arcRadius;
     const arcWidth = healthInfo.arcWidth;
 
-    const backgroundStartAngle = (healthInfo.backgroundStartAngle * Math.PI) / 180;
-    const backgroundEndAngle = (healthInfo.backgroundEndAngle * Math.PI) / 180;
-    const healthStartAngle = (healthInfo.healthArcStartAngle * Math.PI) / 180;
-    const healthEndAngle = (healthInfo.healthArcEndAngle * Math.PI) / 180;
-    const tempHealthStartAngle = (healthInfo.tempHealthArcStartAngle * Math.PI) / 180;
-    const tempHealthEndAngle = (healthInfo.tempHealthArcEndAngle * Math.PI) / 180;
+    const backgroundArcStartRadians = (healthInfo.backgroundStartAngle * Math.PI) / 180;
+    const backgroundArcEndRadians = (healthInfo.backgroundEndAngle * Math.PI) / 180;
+    const healthArcStartRadians = (healthInfo.healthArcStartAngle * Math.PI) / 180;
+    const healthArcEndRadians = (healthInfo.healthArcEndAngle * Math.PI) / 180;
+    const tempHealthArcStartRadians = (healthInfo.tempHealthArcStartAngle * Math.PI) / 180;
+    const tempHealthArcEndRadians = (healthInfo.tempHealthArcEndAngle * Math.PI) / 180;
 
     // Render background arc
-    if (Math.abs(backgroundEndAngle - backgroundStartAngle) > 0.001) {
+    if (Math.abs(backgroundArcEndRadians - backgroundArcStartRadians) > 0.001) {
       graphics.beginFill(0, 0);
-      const backgroundColour = RenderingUtils.transformColour(healthInfo.backgroundColour);
+      const backgroundColour = RenderingUtility.transformColour(healthInfo.backgroundColour);
       graphics.lineStyle({
         width: arcWidth,
         color: backgroundColour,
@@ -46,35 +46,43 @@ export class HealthArcRenderer {
         cap: PIXI.LINE_CAP.BUTT
       });
 
-      graphics.arc(0, 0, radius, backgroundStartAngle, backgroundEndAngle, healthInfo.anticlockwise);
+      graphics.arc(0, 0, radius, backgroundArcStartRadians, backgroundArcEndRadians, healthInfo.anticlockwise);
       graphics.endFill();
     }
 
-    if (Math.abs(healthEndAngle - healthStartAngle) > 0.001) {
-      graphics.beginFill(0, 0);
-      const healthColour = RenderingUtils.transformColour(healthInfo.healthArcColour);
-      graphics.lineStyle({
-        width: arcWidth,
-        color: healthColour,
-        alpha: 1,
-        cap: PIXI.LINE_CAP.BUTT
-      });
+    if (Math.abs(healthArcEndRadians - healthArcStartRadians) > 0.001) {
+      const lowColour = RenderingUtility.transformColour(healthInfo.lowHealthArcColour);
+      const midColour = RenderingUtility.transformColour(healthInfo.midHealthArcColour);
+      const highColour = RenderingUtility.transformColour(healthInfo.highHealthArcColour);
 
-      graphics.arc(0, 0, radius, healthStartAngle, healthEndAngle, healthInfo.anticlockwise);
-      graphics.endFill();
+      const healthPercentage = healthInfo.healthPercentage ?? 0;
+      
+      RenderingUtility.renderGradientArc(
+        graphics,
+        healthArcStartRadians,
+        healthArcEndRadians,
+        radius,
+        arcWidth,
+        lowColour,
+        midColour,
+        highColour,
+        healthPercentage,
+        healthInfo.anticlockwise
+      );
     }
 
-    if (Math.abs(tempHealthEndAngle - tempHealthStartAngle) > 0.001) {
+
+    if (Math.abs(tempHealthArcEndRadians - tempHealthArcStartRadians) > 0.001) {
       graphics.beginFill(0, 0);
-      const tempHealthColour = RenderingUtils.transformColour(healthInfo.tempHealthArcColour);
+      const tempHealthColour = RenderingUtility.transformColour(healthInfo.tempHealthArcColour);
       graphics.lineStyle({
         width: arcWidth,
         color: tempHealthColour,
         alpha: 0.8,
         cap: PIXI.LINE_CAP.BUTT
       });
-      
-      graphics.arc(0, 0, radius, tempHealthStartAngle, tempHealthEndAngle, healthInfo.anticlockwise);
+
+      graphics.arc(0, 0, radius, tempHealthArcStartRadians, tempHealthArcEndRadians, healthInfo.anticlockwise);
       graphics.endFill();
     }
 
@@ -82,21 +90,8 @@ export class HealthArcRenderer {
       radius,
       arcWidth,
       anticlockwise: healthInfo.anticlockwise,
-      backgroundAngles: {
-        start: healthInfo.backgroundStartAngle,
-        end: healthInfo.backgroundEndAngle,
-        diff: healthInfo.backgroundEndAngle - healthInfo.backgroundStartAngle
-      },
-      healthAngles: {
-        start: healthInfo.healthArcStartAngle,
-        end: healthInfo.healthArcEndAngle,
-        diff: healthInfo.healthArcEndAngle - healthInfo.healthArcStartAngle
-      },
-      tempHealthAngles: {
-        start: healthInfo.tempHealthArcStartAngle,
-        end: healthInfo.tempHealthArcEndAngle,
-        diff: healthInfo.tempHealthArcEndAngle - healthInfo.tempHealthArcStartAngle
-      }
+      healthPercentage: healthInfo.healthPercentage,
+      healthInfo
     });
   }
 }

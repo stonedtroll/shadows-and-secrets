@@ -65,19 +65,22 @@ export class HealthMonitor {
      * Handle token control events from EventBus
      */
     private async handleTokenControl(event: TokenControlEvent): Promise<void> {
-
         if (!event.controlled) {
             this.healthDisplayManager.clear();
             this.logger.debug('Token unselected, cleared health display');
-
             return;
         }
 
+        // Check if any tokens are still controlled
         const controlledTokens = this.tokenRepository.getControlledByCurrentUser();
+        
+        if (controlledTokens.length === 0) {
+            this.healthDisplayManager.clear();
+            this.logger.debug('No tokens controlled, cleared health display');
+            return;
+        }
 
-        const controlledToken = controlledTokens.find(token => {
-            return token.id === event.tokenId;
-        });
+        const controlledToken = controlledTokens.find(token => token.id === event.tokenId);
 
         if (!controlledToken) {
             this.logger.warn(`Token not found among controlled tokens: ${event.tokenId}`);
@@ -86,28 +89,33 @@ export class HealthMonitor {
 
         if (!controlledToken.actorId) {
             this.logger.warn(`Token ${controlledToken.name} has no associated actor`);
+            this.healthDisplayManager.clear();
             return;
         }
 
-        await this.processHealthUpdate(controlledToken)
+        await this.processHealthUpdate(controlledToken);
     }
 
     /**
      * Handle canvas ready event
      */
     private async handleCanvasReady(event: CanvasReadyEvent): Promise<void> {
+        // Always clear first, then check for controlled tokens
+        this.healthDisplayManager.clear();
+        
         const controlledTokens = this.tokenRepository.getControlledByCurrentUser();
         if (controlledTokens.length === 0) {
-            this.healthDisplayManager.clear();
+            this.logger.debug('Canvas ready: No controlled tokens, health display remains hidden');
             return;
         }
 
         const firstToken = controlledTokens[0];
-        if (!firstToken) {
-            this.healthDisplayManager.clear();
+        if (!firstToken?.actorId) {
+            this.logger.debug('Canvas ready: First token has no actor, health display remains hidden');
             return;
         }
 
+        this.logger.debug('Canvas ready: Updating health display for controlled token', { tokenName: firstToken.name });
         await this.processHealthUpdate(firstToken);
     }
 

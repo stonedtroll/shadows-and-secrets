@@ -102,4 +102,20 @@ export class DnD5eActorAdapter extends AbstractActorAdapter {
   get healthPercentage(): number {
     return this.actor.system.attributes.hp.pct;
   }
+  
+  get anguish(): number {
+    return this.actor.getFlag(MODULE_ID, 'anguish')?.value ?? 0;
+  }
+
+  set anguish(value: number) {
+    this.actor.setFlag(MODULE_ID, 'anguish', { value });
+  }
+
+  get maxAnguish(): number {
+    const sanityScore = this.actor.system.abilities.san?.value;
+    const wisdomScore = this.actor.system.abilities.wis?.value;
+    const relevantScore = sanityScore ?? wisdomScore ?? 10;
+
+    return relevantScore * 20;
+  }
 }
