@@ -37,6 +37,7 @@ A Foundry VTT add-on that deepens immersion by presenting live, context-sensitiv
 
 ## Suggested Module
 - Maleficar Manoeuvres: https://github.com/stonedtroll/maleficar-manoeuvres
+- Insania et Perturbatio Animi: https://github.com/stonedtroll/insania-et-perturbatio-animi
 
 <p align=right>
     <img  alt="GitHub Downloads (specific asset, all releases)" src="https://img.shields.io/github/downloads/stonedtroll/shadows-and-secrets/module.zip?style=for-the-badge&labelColor=2A2D34&color=8C2E2E">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img alt="GitHub Downloads (specific asset, latest release)" src="https://img.shields.io/github/downloads/stonedtroll/shadows-and-secrets/latest/module.zip?style=for-the-badge&labelColor=2A2D34&color=D97D26">
