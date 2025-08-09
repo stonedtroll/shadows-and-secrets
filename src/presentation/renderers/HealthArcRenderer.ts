@@ -4,6 +4,7 @@ import * as PIXI from 'pixi.js';
 import { MODULE_ID } from '../../config.js';
 import { LoggerFactory, type FoundryLogger } from '../../../lib/log4foundry/log4foundry.js';
 import { RenderingUtility } from '../utils/RenderingUtility.js';
+import { Scaler } from '../utils/Scaler.js';
 
 export class HealthArcRenderer {
   private readonly logger: FoundryLogger;
@@ -25,8 +26,8 @@ export class HealthArcRenderer {
     }
 
     const healthInfo = context.healthInfo;
-    const radius = context.healthInfo.arcRadius;
-    const arcWidth = healthInfo.arcWidth;
+    const radius = context.token.radius + Math.round(Scaler.scaleLinear(healthInfo.arcRadius - context.token.radius));
+    const arcWidth = Math.round(Scaler.scaleLinear(healthInfo.arcWidth));
 
     const backgroundArcStartRadians = (healthInfo.backgroundStartAngle * Math.PI) / 180;
     const backgroundArcEndRadians = (healthInfo.backgroundEndAngle * Math.PI) / 180;

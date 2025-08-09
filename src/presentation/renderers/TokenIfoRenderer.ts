@@ -4,6 +4,7 @@ import * as PIXI from 'pixi.js';
 import { MODULE_ID } from '../../config.js';
 import { LoggerFactory, type FoundryLogger } from '../../../lib/log4foundry/log4foundry.js';
 import { RenderingUtility } from '../utils/RenderingUtility.js';
+import { Scaler } from '../utils/Scaler.js';
 
 export class TokenInfoRenderer {
     private readonly logger: FoundryLogger;
@@ -33,7 +34,7 @@ export class TokenInfoRenderer {
 
         const textStyle = RenderingUtility.buildTextStyle({
             font: styleConfig.font,
-            fontSize: styleConfig.fontSize,
+            fontSize: Math.round(Scaler.scaleLinear(styleConfig.fontSize)),
             fontColour: styleConfig.fontColour,
             fontWeight: styleConfig.fontWeight,
             fontOpacity: styleConfig.fontOpacity,
